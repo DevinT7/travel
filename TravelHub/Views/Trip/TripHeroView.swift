@@ -76,6 +76,10 @@ struct RouteMapCard: View {
     let trip: Trip
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { _ in map }
+    }
+
+    private var map: some View {
         Map(initialPosition: .automatic, interactionModes: [.pan, .zoom]) {
             ForEach(trip.sortedFlights) { flight in
                 MapPolyline(coordinates: [flight.departure.coordinate, flight.arrival.coordinate], contourStyle: .geodesic)
@@ -111,6 +115,12 @@ struct RouteMapCard: View {
 enum FlightProgress {
     struct Position { let coordinate: CLLocationCoordinate2D; let bearing: Double }
 
+    /// From two hours before departure until half an hour after landing: the window where live
+    /// updates are worth fetching.
+    static func isInLiveWindow(_ flight: FlightSegment, at date: Date = .now) -> Bool {
+        date > flight.departure.best.addingTimeInterval(-2 * 3600) && date < flight.arrival.best.addingTimeInterval(30 * 60)
+    }
+
     static func fraction(of flight: FlightSegment, at date: Date = .now) -> Double? {
         let start = flight.departure.best, end = flight.arrival.best
         guard end > start, date > start, date < end else { return nil }
@@ -118,6 +128,21 @@ enum FlightProgress {
     }
 
     static func position(of flight: FlightSegment, at date: Date = .now) -> Position? {
+        if let live = livePosition(of: flight, at: date) { return live }
+        return estimatedPosition(of: flight, at: date)
+    }
+
+    /// The position AeroDataBox last reported, if it's under 30 minutes old and the flight hasn't landed.
+    static func livePosition(of flight: FlightSegment, at date: Date = .now) -> Position? {
+        guard let lat = flight.liveLatitude, let lon = flight.liveLongitude, let at = flight.livePositionAt,
+              date.timeIntervalSince(at) < 30 * 60, date < flight.arrival.best else { return nil }
+        let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        let heading = flight.liveHeading ?? bearing(coordinate, flight.arrival.coordinate)
+        return Position(coordinate: coordinate, bearing: heading)
+    }
+
+    /// Where the plane should be if it's flying the great circle on schedule.
+    static func estimatedPosition(of flight: FlightSegment, at date: Date = .now) -> Position? {
         guard let f = fraction(of: flight, at: date) else { return nil }
         let a = flight.departure.coordinate, b = flight.arrival.coordinate
         let p = interpolate(a, b, f)

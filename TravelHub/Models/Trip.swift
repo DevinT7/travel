@@ -17,6 +17,7 @@ final class Trip {
     var startDate: Date = Date()
     var endDate: Date = Date()
     var createdAt: Date = Date()
+    /// Legacy flag from the removed demo trip; only read to delete old demo data on launch.
     var isSample: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \FlightSegment.trip)
@@ -120,7 +121,15 @@ final class FlightSegment {
     var aircraftModel: String?
     var distanceKm: Double?
     var lastUpdated: Date = Date()
+    /// Legacy flag from the removed demo trip; only read to delete old demo data on launch.
     var isSample: Bool = false
+    /// Last live position reported by AeroDataBox while the flight is in the air.
+    var liveLatitude: Double?
+    var liveLongitude: Double?
+    var liveAltitudeFeet: Double?
+    var liveSpeedKnots: Double?
+    var liveHeading: Double?
+    var livePositionAt: Date?
     var trip: Trip?
 
     init(flightNumber: String, airlineName: String, airlineCode: String,

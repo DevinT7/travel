@@ -100,7 +100,6 @@ struct TripsListView: View {
                 }
                 .overlay(alignment: .topTrailing) {
                     HStack(spacing: 6) {
-                        if trip.isSample { StatusPill(text: "Sample", color: .white) }
                         if isCurrent {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.title3)

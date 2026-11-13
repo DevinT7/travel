@@ -66,7 +66,17 @@ brew install xcodegen
 xcodegen generate && open TravelHub.xcodeproj
 ```
 
-Pick the **TravelHub** scheme, then an iPhone simulator or **My Mac**. On the welcome screen, **Explore a sample trip** loads a demo Tokyo trip with made-up flights, clearly marked as a sample.
+Pick the **TravelHub** scheme, then an iPhone simulator or **My Mac**. Create a trip from the welcome screen, then add flights by pasting a confirmation, typing them in, or looking them up by number.
+
+### On your iPhone
+
+`project.yml` signs with a personal development team (`DEVELOPMENT_TEAM`); change it to your own team ID if you're building elsewhere. With the phone connected and Developer Mode on, pick it as the run destination in Xcode, or from the command line:
+
+```bash
+xcodebuild -project TravelHub.xcodeproj -scheme TravelHub -destination 'id=<device UDID>' -allowProvisioningUpdates build
+```
+
+The first time, iOS asks you to trust the developer: **Settings → General → VPN & Device Management → Apple Development → Trust**. Apps signed with a free personal team expire after 7 days; rebuild to renew. API keys are per device, so add them again in the app's Settings on the phone.
 
 `project.yml` is the source of truth for the Xcode project. Regenerate after adding or removing files.
 
@@ -76,7 +86,7 @@ Pick the **TravelHub** scheme, then an iPhone simulator or **My Mac**. On the we
 TravelHub/
   App/        App entry, tab/sidebar shell, trip switcher, welcome screen
   Models/     SwiftData models (Trip, FlightSegment, Stay, PlanItem) and DiscoverItem
-  Services/   AeroDataBox, Wikipedia, Apple Maps, Ticketmaster, weather, currency, directions, sample data
+  Services/   AeroDataBox, Wikipedia, Apple Maps, Ticketmaster, weather, currency, directions, airports, confirmation parsing
   Views/
     Common/   Theme colors, cards, chips, image tiles, empty states
     Trip/     Dashboard, route map, flight card, add flight, stays, weather and local info

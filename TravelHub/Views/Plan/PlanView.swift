@@ -106,19 +106,78 @@ struct PlanView: View {
 
     // MARK: Timeline
 
+    @ViewBuilder
     private func timeline(_ entries: [TimelineEntry], day: Date) -> some View {
+        #if os(macOS)
+        macTimeline(entries, day: day)
+        #else
+        listTimeline(entries, day: day)
+        #endif
+    }
+
+    private func dayTitle(_ day: Date) -> String {
+        day.formatted(Date.FormatStyle(timeZone: trip.timeZone).weekday(.wide).month(.wide).day())
+    }
+
+    private func entryMenu(_ entry: TimelineEntry) -> some View {
+        Group {
+            if let item = entry.planItem {
+                Button("Edit", systemImage: "pencil") { editing = item }
+                Button("Move to Ideas", systemImage: "tray.and.arrow.down") { item.isScheduled = false; try? context.save() }
+                Button("Delete", systemImage: "trash", role: .destructive) { context.delete(item); try? context.save() }
+            }
+        }
+    }
+
+    private var emptyDay: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Nothing planned yet").font(.headline)
+            Text("Find things to do in Discover, or add your own plans.")
+                .font(.subheadline).foregroundStyle(.secondary)
+            Button("Discover \(trip.destinationName)") { app.selectedTab = .discover }
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 6)
+    }
+
+    /// Mac: the same rounded card and rows as iOS's inset-grouped list, without a table look.
+    private func macTimeline(_ entries: [TimelineEntry], day: Date) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(dayTitle(day)).font(.title3.bold()).padding(.horizontal, 4)
+                VStack(alignment: .leading, spacing: 0) {
+                    if entries.isEmpty { emptyDay }
+                    ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                        if index > 0, !isFlightLeg(entries[index - 1], entry),
+                           let a = entries[index - 1].coordinate, let b = entry.coordinate {
+                            TravelRow(from: a, to: b, gap: entry.start.timeIntervalSince(entries[index - 1].end ?? entries[index - 1].start))
+                                .padding(.leading, 4)
+                        }
+                        TimelineRow(entry: entry, tz: entry.timeZone ?? trip.timeZone)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                focusedEntryID = entry.id
+                                if let item = entry.planItem { editing = item }
+                            }
+                            .contextMenu { entryMenu(entry) }
+                    }
+                }
+                .padding(.horizontal, Metrics.gutter)
+                .padding(.vertical, 8)
+                .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+                if !entries.isEmpty {
+                    Text(summary(entries)).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
+                }
+            }
+            .padding(Metrics.gutter)
+        }
+    }
+
+    private func listTimeline(_ entries: [TimelineEntry], day: Date) -> some View {
         List {
             Section {
-                if entries.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Nothing planned yet").font(.headline)
-                        Text("Find things to do in Discover, or add your own plans.")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                        Button("Discover \(trip.destinationName)") { app.selectedTab = .discover }
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .padding(.vertical, 6)
-                }
+                if entries.isEmpty { emptyDay }
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                     if index > 0, !isFlightLeg(entries[index - 1], entry),
                        let a = entries[index - 1].coordinate, let b = entry.coordinate {
@@ -144,16 +203,10 @@ struct PlanView: View {
                                 .tint(.orange)
                             }
                         }
-                        .contextMenu {
-                            if let item = entry.planItem {
-                                Button("Edit", systemImage: "pencil") { editing = item }
-                                Button("Move to Ideas", systemImage: "tray.and.arrow.down") { item.isScheduled = false; try? context.save() }
-                                Button("Delete", systemImage: "trash", role: .destructive) { context.delete(item); try? context.save() }
-                            }
-                        }
+                        .contextMenu { entryMenu(entry) }
                 }
             } header: {
-                Text(day.formatted(Date.FormatStyle(timeZone: trip.timeZone).weekday(.wide).month(.wide).day()))
+                Text(dayTitle(day))
             } footer: {
                 if !entries.isEmpty { Text(summary(entries)) }
             }

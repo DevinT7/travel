@@ -18,6 +18,11 @@ struct TripDashboardView: View {
 
     private let columns = [GridItem(.adaptive(minimum: 340), spacing: 12, alignment: .top)]
 
+    /// A lone card spans the full width on wide screens instead of sitting in half of a two-column grid.
+    private func columns(for count: Int) -> [GridItem] {
+        count == 1 ? [GridItem(.flexible(), alignment: .top)] : columns
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -44,11 +49,6 @@ struct TripDashboardView: View {
                 .padding(.top, -6)
 
                 VStack(alignment: .leading, spacing: 28) {
-                    if trip.isSample {
-                        NoticeBanner(symbol: "sparkles",
-                                     message: "This is a sample trip with made-up flights. Create your own to look up real ones.",
-                                     actionTitle: "New Trip") { model.isPresentingNewTrip = true }
-                    }
                     flightsSection
                     upNextSection
                     staySection
@@ -68,6 +68,9 @@ struct TripDashboardView: View {
         .statusBarFade()
         #else
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                TripSwitcherMenu { Label("Trips", systemImage: "suitcase") }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button("Add Flight", systemImage: "airplane") { showingAddFlight = true }
@@ -81,6 +84,7 @@ struct TripDashboardView: View {
         #endif
         .refreshable { await refreshAll() }
         .task(id: trip.id) { await loadInfo() }
+        .task(id: trip.id) { await keepLiveFlightsFresh() }
         .sheet(isPresented: $showingAddFlight) { AddFlightView(trip: trip) }
         .sheet(isPresented: $showingAddStay) { StayEditorView(trip: trip, stay: nil) }
         .sheet(isPresented: $addingActivity) { PlanItemEditor(trip: trip, mode: .custom(day: nil)) }
@@ -98,14 +102,13 @@ struct TripDashboardView: View {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader("Flights") { SeeAllButton(title: "Add") { showingAddFlight = true } }
                 RouteMapCard(trip: trip)
-                LazyVGrid(columns: columns, spacing: 12) {
+                LazyVGrid(columns: columns(for: trip.sortedFlights.count), spacing: 12) {
                     ForEach(trip.sortedFlights) { flight in
                         FlightCardView(flight: flight)
                             .contextMenu {
                                 Button("Refresh Status", systemImage: "arrow.clockwise") {
                                     Task { await refresh(flight) }
                                 }
-                                .disabled(flight.isSample)
                                 Button("Remove Flight", systemImage: "trash", role: .destructive) {
                                     context.delete(flight); try? context.save()
                                 }
@@ -121,7 +124,7 @@ struct TripDashboardView: View {
         if !trip.sortedStays.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader("Stay") { SeeAllButton(title: "Add") { showingAddStay = true } }
-                LazyVGrid(columns: columns, spacing: 12) {
+                LazyVGrid(columns: columns(for: trip.sortedStays.count), spacing: 12) {
                     ForEach(trip.sortedStays) { stay in
                         StayCardView(stay: stay, tz: trip.timeZone)
                             .onTapGesture { editingStay = stay }
@@ -198,16 +201,30 @@ struct TripDashboardView: View {
     }
 
     private func refreshAll() async {
-        for flight in trip.sortedFlights where !flight.isSample { await refresh(flight) }
+        for flight in trip.sortedFlights { await refresh(flight) }
         await loadInfo()
     }
 
-    private func refresh(_ flight: FlightSegment) async {
+    private func refresh(_ flight: FlightSegment, quietly: Bool = false) async {
         do {
             try await FlightService().refresh(flight)
             try? context.save()
         } catch {
-            refreshError = error.localizedDescription
+            if !quietly { refreshError = error.localizedDescription }
         }
     }
+
+    /// While the trip is on screen, refreshes flights that are about to leave, in the air, or just
+    /// landed every 10 minutes. Each refresh is one AeroDataBox request, so it stays off otherwise.
+    private func keepLiveFlightsFresh() async {
+        while !Task.isCancelled {
+            if APIKeys.aeroDataBox != nil {
+                for flight in trip.sortedFlights where FlightProgress.isInLiveWindow(flight) && Date.now.timeIntervalSince(flight.lastUpdated) > 10 * 60 {
+                    await refresh(flight, quietly: true)
+                }
+            }
+            try? await Task.sleep(for: .seconds(60))
+        }
+    }
+
 }

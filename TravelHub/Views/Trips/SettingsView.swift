@@ -6,7 +6,6 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @AppStorage(APIKeys.aeroDataBoxKey) private var aeroKey = ""
     @AppStorage(APIKeys.ticketmasterKey) private var tmKey = ""
-    @State private var addedSample = false
 
     var body: some View {
         Form {
@@ -38,11 +37,6 @@ struct SettingsView: View {
             }
 
             Section {
-                Button(addedSample ? "Sample trip added" : "Add sample Tokyo trip") {
-                    SampleData.insertTokyoTrip(into: context)
-                    addedSample = true
-                }
-                .disabled(addedSample)
             } footer: {
                 Text("Keys are stored on this device only.")
             }

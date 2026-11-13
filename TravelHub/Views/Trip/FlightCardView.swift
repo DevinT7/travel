@@ -5,13 +5,16 @@ struct FlightCardView: View {
     let flight: FlightSegment
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { _ in card }
+    }
+
+    private var card: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 CircleIcon(symbol: "airplane", color: .flight, size: 26)
                 Text(flight.flightNumber).font(.subheadline.weight(.semibold))
                 Text(flight.airlineName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength: 4)
-                if flight.isSample { StatusPill(text: "Sample", color: .orange) }
                 StatusPill(text: status.text, color: status.color)
             }
 
@@ -25,6 +28,12 @@ struct FlightCardView: View {
             }
 
             Divider()
+
+            if let liveLine {
+                Label(liveLine, systemImage: FlightProgress.livePosition(of: flight) != nil ? "dot.radiowaves.left.and.right" : "arrow.clockwise")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             HStack(spacing: 0) {
                 detail("Terminal", flight.departure.terminal)
@@ -76,11 +85,32 @@ struct FlightCardView: View {
         if s.contains("cancel") { return ("Canceled", .red) }
         if s.contains("divert") { return ("Diverted", .red) }
         if s.contains("landed") || s.contains("arrived") { return ("Landed", .secondary) }
-        if s.contains("air") || s.contains("departed") { return ("In Air", .blue) }
+        if s.contains("approach") { return ("Landing Soon", .blue) }
+        if s.contains("in air") || s.contains("enroute") || s.contains("departed") { return ("In Air", .blue) }
         let delay = flight.departure.delayMinutes
         if delay >= 15 { return ("Delayed \(TimeInterval(delay * 60).hoursMinutes)", .orange) }
+        if s.contains("delay") { return ("Delayed", .orange) }
         if s.contains("board") { return ("Boarding", .green) }
+        if s.contains("gate closed") { return ("Gate Closed", .orange) }
+        if s.contains("check") { return ("Check-in", .green) }
+        if Date.now > flight.departure.best, Date.now < flight.arrival.best, flight.livePositionAt == nil {
+            return ("Scheduled", .secondary)
+        }
         return ("On Time", .green)
+    }
+
+    /// "35,000 ft · 482 kt · Updated 3 min ago" while airborne; "Updated 12 min ago" otherwise.
+    private var liveLine: String? {
+        var parts: [String] = []
+        if FlightProgress.livePosition(of: flight) != nil {
+            if let ft = flight.liveAltitudeFeet { parts.append("\(Int(ft).formatted()) ft") }
+            if let kt = flight.liveSpeedKnots { parts.append("\(Int(kt)) kt") }
+        }
+        guard APIKeys.aeroDataBox != nil, FlightProgress.isInLiveWindow(flight) else {
+            return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        }
+        parts.append("Updated \(flight.lastUpdated.formatted(.relative(presentation: .named)))")
+        return parts.joined(separator: " · ")
     }
 }
 

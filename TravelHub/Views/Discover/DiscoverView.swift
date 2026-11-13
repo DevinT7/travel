@@ -36,6 +36,9 @@ struct DiscoverView: View {
                 .padding(.horizontal, Metrics.gutter)
             }
             .padding(.bottom, 32)
+            #if os(macOS)
+            .padding(.top, 12)
+            #endif
             .readableWidth(1100)
         }
         .background(Color.appBackground)

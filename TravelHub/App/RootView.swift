@@ -32,12 +32,26 @@ struct RootView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        .task { removeLegacyDemoData() }
+        #if DEBUG && os(macOS)
+        .task { await DebugSnapshot.runIfRequested(model: model) }
+        #endif
         .sheet(isPresented: $model.isPresentingNewTrip) {
             NewTripView { newTrip in model.selectedTripID = newTrip.id; model.selectedTab = .trip }
         }
         .sheet(isPresented: $model.isPresentingSettings) {
             NavigationStack { SettingsView() }
         }
+    }
+
+    /// Deletes the demo Tokyo trip and its made-up flights from earlier versions.
+    private func removeLegacyDemoData() {
+        let demos = trips.filter(\.isSample)
+        let strayFlights = (try? context.fetch(FetchDescriptor<FlightSegment>(predicate: #Predicate { $0.isSample }))) ?? []
+        guard !demos.isEmpty || !strayFlights.isEmpty else { return }
+        demos.forEach(context.delete)
+        strayFlights.forEach(context.delete)
+        try? context.save()
     }
 
     private var welcome: some View {
@@ -102,12 +116,6 @@ struct WelcomeView: View {
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.capsule)
                     .controlSize(.large)
-
-                    Button("Explore a Sample Trip") {
-                        let trip = SampleData.insertTokyoTrip(into: context)
-                        model.selectedTripID = trip.id
-                    }
-                    .font(.body.weight(.semibold))
                 }
                 .frame(maxWidth: 360)
 

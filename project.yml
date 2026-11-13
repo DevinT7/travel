@@ -32,6 +32,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_PREVIEWS: YES
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: F4Q68YM222
         "CODE_SIGN_IDENTITY[sdk=macosx*]": "-"
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": TravelHub/Resources/TravelHub-macOS.entitlements
         ENABLE_HARDENED_RUNTIME: YES

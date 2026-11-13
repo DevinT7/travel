@@ -23,7 +23,7 @@ struct FlightService {
         dateFormatter.dateFormat = "yyyy-MM-dd"
 
         let url = URL(string: "https://\(Self.host)/flights/number/\(number)/\(dateFormatter.string(from: date))")!
-            .appending(query: ["withAircraftImage": "false", "withLocation": "false", "dateLocalRole": "Departure"])
+            .appending(query: ["withAircraftImage": "false", "withLocation": "true", "dateLocalRole": "Departure"])
         let flights: [ADBFlight] = try await HTTP.get(url, headers: ["X-RapidAPI-Key": key, "X-RapidAPI-Host": Self.host],
                                                       service: "AeroDataBox")
         let segments = flights.compactMap { $0.segment }
@@ -33,7 +33,6 @@ struct FlightService {
 
     /// Re-fetches live status for a saved flight and copies new times/gates onto it.
     func refresh(_ flight: FlightSegment) async throws {
-        guard !flight.isSample else { return }
         let legs = try await lookup(flightNumber: flight.flightNumber, date: flight.departure.scheduled,
                                     timeZone: flight.departure.timeZone)
         guard let match = legs.first(where: { $0.departure.iata == flight.departure.iata }) ?? legs.first else { return }
@@ -41,6 +40,15 @@ struct FlightService {
         flight.arrival = match.arrival
         flight.status = match.status
         flight.aircraftModel = match.aircraftModel ?? flight.aircraftModel
+        if match.airlineName.isEmpty == false { flight.airlineName = match.airlineName }
+        if match.livePositionAt != nil {
+            flight.liveLatitude = match.liveLatitude
+            flight.liveLongitude = match.liveLongitude
+            flight.liveAltitudeFeet = match.liveAltitudeFeet
+            flight.liveSpeedKnots = match.liveSpeedKnots
+            flight.liveHeading = match.liveHeading
+            flight.livePositionAt = match.livePositionAt
+        }
         flight.lastUpdated = .now
     }
 }
@@ -75,6 +83,24 @@ private struct ADBFlight: Decodable {
     struct Airline: Decodable { let name: String?; let iata: String?; let icao: String? }
     struct Aircraft: Decodable { let model: String? }
     struct Distance: Decodable { let km: Double? }
+    /// Real-time position, present while the flight is airborne and tracked.
+    struct Live: Decodable {
+        struct Feet: Decodable { let feet: Double? }
+        struct Speed: Decodable { let kt: Double? }
+        struct Degrees: Decodable { let deg: Double? }
+        let lat: Double?
+        let lon: Double?
+        let altitude: Feet?
+        let pressureAltitude: Feet?
+        let groundSpeed: Speed?
+        let trueTrack: Degrees?
+        let reportedAtUtc: String?
+    }
+    /// Decodes a value if it can, and otherwise leaves it nil instead of failing the whole flight.
+    struct Lenient<T: Decodable>: Decodable {
+        let value: T?
+        init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+    }
 
     let number: String?
     let status: String?
@@ -83,10 +109,11 @@ private struct ADBFlight: Decodable {
     let airline: Airline?
     let aircraft: Aircraft?
     let greatCircleDistance: Distance?
+    let location: Lenient<Live>?
 
     var segment: FlightSegment? {
         guard let dep = endpoint(departure), let arr = endpoint(arrival) else { return nil }
-        return FlightSegment(
+        let segment = FlightSegment(
             flightNumber: number ?? "",
             airlineName: airline?.name ?? "",
             airlineCode: airline?.iata ?? airline?.icao ?? "",
@@ -95,6 +122,16 @@ private struct ADBFlight: Decodable {
             aircraftModel: aircraft?.model,
             distanceKm: greatCircleDistance?.km
         )
+        if let live = location?.value, let lat = live.lat, let lon = live.lon {
+            segment.liveLatitude = lat
+            segment.liveLongitude = lon
+            // `altitude` is often reported as 0 (no geometric reading); pressure altitude is what pilots fly.
+            segment.liveAltitudeFeet = [live.pressureAltitude?.feet, live.altitude?.feet].compactMap { $0 }.first { $0 > 0 }
+            segment.liveSpeedKnots = live.groundSpeed?.kt
+            segment.liveHeading = live.trueTrack?.deg
+            segment.livePositionAt = ADBDate.parse(live.reportedAtUtc) ?? .now
+        }
+        return segment
     }
 
     private func endpoint(_ m: Movement) -> FlightEndpoint? {
@@ -119,7 +156,8 @@ private struct ADBFlight: Decodable {
         guard let raw, !raw.isEmpty, raw != "Unknown" else { return "Scheduled" }
         switch raw {
         case "Expected": return "Scheduled"
-        case "EnRoute": return "In Air"
+        case "EnRoute", "Departed": return "In Air"
+        case "Approaching": return "Approaching"
         case "CheckIn": return "Check-in"
         case "GateClosed": return "Gate Closed"
         case "Canceled", "CanceledUncertain": return "Canceled"
@@ -131,7 +169,8 @@ private struct ADBFlight: Decodable {
 
 private enum ADBDate {
     private static let formatters: [DateFormatter] = ["yyyy-MM-dd HH:mmXXXXX", "yyyy-MM-dd HH:mm:ssXXXXX",
-                                                      "yyyy-MM-dd'T'HH:mm:ssXXXXX", "yyyy-MM-dd'T'HH:mmXXXXX"].map {
+                                                      "yyyy-MM-dd'T'HH:mm:ssXXXXX", "yyyy-MM-dd'T'HH:mmXXXXX",
+                                                      "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX"].map {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.calendar = Calendar(identifier: .gregorian)
@@ -139,9 +178,19 @@ private enum ADBDate {
         return f
     }
 
+    private static let utcMinute: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = Calendar(identifier: .gregorian)
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f
+    }()
+
     static func parse(_ string: String?) -> Date? {
         guard let string else { return nil }
         for f in formatters { if let d = f.date(from: string) { return d } }
-        return nil
+        // Position reports come as UTC without a zone suffix.
+        return utcMinute.date(from: string)
     }
 }
