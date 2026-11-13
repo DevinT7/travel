@@ -17,7 +17,7 @@ struct SettingsView: View {
             } header: {
                 keyHeader("Flights", isSet: !aeroKey.isEmpty)
             } footer: {
-                Text("Used to look up flight numbers: times, terminals, gates and aircraft. The free Basic plan is plenty for personal trips.")
+                Text("Optional. Adds live flight lookup by number, plus terminals, gates, baggage belts and delays (pull down on a trip to refresh). Sign up on RapidAPI, subscribe to AeroDataBox's free Basic plan (400 API units a month), then copy your X-RapidAPI-Key here. You can always paste or type flights without a key.")
             }
 
             Section {

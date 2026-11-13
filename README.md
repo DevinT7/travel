@@ -40,7 +40,19 @@ Colors live in `Views/Common/Theme.swift`; shared pieces (cards, circle icons, q
 | Weather | [Open-Meteo](https://open-meteo.com) | No | Free |
 | Exchange rates | [open.er-api.com](https://www.exchangerate-api.com/docs/free) | No | Free |
 
-Without any keys, everything except flight lookup and Events works. Add the keys in **Settings**: the gear on the Trips tab on iPhone, or **TravelHub → Settings…** (⌘,) on Mac. Keys are stored on the device.
+Without any keys, everything except live flight lookup and Events works. You can still add flights without a key:
+
+- **Paste:** paste an airline confirmation email or text into Add Flight → Paste. The flight numbers, airport codes, dates and times are read on the device (no network call for the text itself), airports are looked up with Apple Maps, and times are converted with each airport's time zone. Flights already in the trip are skipped.
+- **Enter:** type the flight number, airport codes and local times.
+
+### Setting up live flight lookup (AeroDataBox)
+
+1. Go to the [AeroDataBox listing on RapidAPI](https://rapidapi.com/aedbx-aedbx/api/aerodatabox/pricing) and sign up or log in.
+2. Subscribe to the free **Basic** plan (400 API units a month, 1 request a second).
+3. Open any endpoint on the listing and copy the **X-RapidAPI-Key** value shown in the request headers.
+4. In TravelHub, open **Settings** (the gear on the Trips tab, or ⌘, on Mac) and paste it into **AeroDataBox (RapidAPI) key**.
+
+Add Flight then opens on **Look Up**, and pulling down on a trip refreshes every real flight with terminals, gates, baggage belts and delays — including flights you pasted or typed in. Add the keys in **Settings**: the gear on the Trips tab on iPhone, or **TravelHub → Settings…** (⌘,) on Mac. Keys are stored on the device.
 
 ## Running it
 

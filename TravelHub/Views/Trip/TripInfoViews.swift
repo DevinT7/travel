@@ -6,6 +6,16 @@ struct WeatherStripView: View {
     let loaded: Bool
     let tz: TimeZone
 
+    /// Multicolor weather symbols draw clouds in white, which vanish on a white card,
+    /// so each symbol gets a single readable tint instead.
+    static func tint(for symbol: String) -> Color {
+        if symbol.contains("bolt") { return .purple }
+        if symbol.contains("snow") || symbol.contains("sleet") { return .cyan }
+        if symbol.contains("rain") || symbol.contains("drizzle") || symbol.contains("heavy") { return .blue }
+        if symbol.contains("sun") { return .orange }
+        return .gray
+    }
+
     var body: some View {
         if forecast.isEmpty {
             HStack(spacing: 12) {
@@ -24,7 +34,8 @@ struct WeatherStripView: View {
                         VStack(spacing: 8) {
                             Text(day.date.weekday(in: tz)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                             Image(systemName: day.symbol)
-                                .symbolRenderingMode(.multicolor)
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(Self.tint(for: day.symbol))
                                 .font(.title3)
                                 .frame(height: 26)
                             Text("\(Int(day.high.rounded()))°").font(.subheadline.weight(.semibold))

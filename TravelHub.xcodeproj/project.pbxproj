@@ -9,8 +9,11 @@
 /* Begin PBXBuildFile section */
 		027180B3F7D3BCD59F37C2F8 /* DiscoverProviders.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2BD7DDF591BC9771EB4A0B3 /* DiscoverProviders.swift */; };
 		02D5378E1F47EBD82AA9E0A5 /* DiscoverModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB205CB55F275CA0281B5C43 /* DiscoverModel.swift */; };
+		0519D826AEACEFE6D525FF07 /* AirportLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF48F1753A12D348059A0EE9 /* AirportLookup.swift */; };
+		095D65E74FD20AB69FA40B7C /* ManualFlightForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EC7AEBC2021108D54ECA14A /* ManualFlightForm.swift */; };
 		0A702297D3C3B1DBAA698B38 /* HTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AAD729FF281DD6ABEDFECB3 /* HTTP.swift */; };
 		0FA7CFDB31660ADE1B345DA5 /* TripsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41EA5FEB9BE10025E9C7D9B /* TripsListView.swift */; };
+		1A689128DDC4414D47780165 /* ConfirmationParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = D38CE43846FA6525121AA8A8 /* ConfirmationParser.swift */; };
 		306B39787F310386DEC0A841 /* DiscoverItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1810BC901C449D05A827A606 /* DiscoverItem.swift */; };
 		30B1C0D4268B98233639164E /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB25C5848ACE35A78CCAA2EB /* SampleData.swift */; };
 		30B8C2CFB7AF486A90ABAB0E /* FlightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA4B83867C58AD61F19AC8A /* FlightCardView.swift */; };
@@ -28,20 +31,25 @@
 		B7406B90CF8DFE68B183145A /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67FE8885139D11B23323018F /* Trip.swift */; };
 		B830123977EF9B689542A470 /* PlanItemEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7FB815F7F9A9FF57CBD81D5 /* PlanItemEditor.swift */; };
 		B8FCE47F34A99F953A215AB0 /* AddFlightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBEBECFEDEDC8DE9E48D45F4 /* AddFlightView.swift */; };
+		C75FB4BD5EC545EB29B87BF9 /* ConfirmationImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A0B526E75E16606CCB9BE4 /* ConfirmationImporter.swift */; };
 		D1A8C3ECADE1C39DEBBBDB75 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED10A89F605448531BA3C8A5 /* Theme.swift */; };
 		D2400A77CCA35257E5755482 /* TripHeroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08CC110AAAA4F2C1739D20D /* TripHeroView.swift */; };
+		D30F5848C9F4B7736C07A80A /* PasteFlightsForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09E28A900A127D248EE6D812 /* PasteFlightsForm.swift */; };
 		D3EC40563DA11A476D8051DD /* DiscoverDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA6F32F457356E4D7A9748B9 /* DiscoverDetailView.swift */; };
 		D75978292FE05B006236C11E /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EAFDE07900D75881C069C2 /* Components.swift */; };
 		D7F5AFE31644445D7B0505D3 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A483DF3D546707E44BC40EC /* DiscoverView.swift */; };
 		D93B7839E19C049C53187E92 /* TravelHubApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E60A5A2946DF484C3848896A /* TravelHubApp.swift */; };
 		EC0898C266577D072734AFA3 /* StayViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F1546336FD47750F8714CC /* StayViews.swift */; };
 		EE90891B8B956238402138E8 /* LocationSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73ADFE076ABA029ED5689B44 /* LocationSearch.swift */; };
+		FACC2448B476C3E0C1318AA7 /* Airlines.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE85157750BC76E435BC525B /* Airlines.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		09E28A900A127D248EE6D812 /* PasteFlightsForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteFlightsForm.swift; sourceTree = "<group>"; };
 		0AF9625EB23A09CB73A0BADE /* TripCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCover.swift; sourceTree = "<group>"; };
 		11F1546336FD47750F8714CC /* StayViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StayViews.swift; sourceTree = "<group>"; };
 		1810BC901C449D05A827A606 /* DiscoverItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverItem.swift; sourceTree = "<group>"; };
+		25A0B526E75E16606CCB9BE4 /* ConfirmationImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationImporter.swift; sourceTree = "<group>"; };
 		375B9394805B4548B6FB9196 /* TravelHub-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "TravelHub-macOS.entitlements"; sourceTree = "<group>"; };
 		5EAB2B84A06784ED599DF4E3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		67AC3EA4E34C4EAEF834004B /* DiscoverCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCards.swift; sourceTree = "<group>"; };
@@ -52,6 +60,7 @@
 		7A483DF3D546707E44BC40EC /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
 		7AAC45D1ECDE8B1E4E319B8B /* TripInfoViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripInfoViews.swift; sourceTree = "<group>"; };
 		7BD3F55323A8D14424D049AC /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		7EC7AEBC2021108D54ECA14A /* ManualFlightForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualFlightForm.swift; sourceTree = "<group>"; };
 		8AA4B83867C58AD61F19AC8A /* FlightCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlightCardView.swift; sourceTree = "<group>"; };
 		8AAD729FF281DD6ABEDFECB3 /* HTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTP.swift; sourceTree = "<group>"; };
 		8CE8C815F32EA64A22554B35 /* PlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanView.swift; sourceTree = "<group>"; };
@@ -59,10 +68,12 @@
 		A41EA5FEB9BE10025E9C7D9B /* TripsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsListView.swift; sourceTree = "<group>"; };
 		A8B9F9B8B574D9AB89DE266F /* TravelHub.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TravelHub.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B7FB815F7F9A9FF57CBD81D5 /* PlanItemEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanItemEditor.swift; sourceTree = "<group>"; };
+		BE85157750BC76E435BC525B /* Airlines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Airlines.swift; sourceTree = "<group>"; };
 		C08CC110AAAA4F2C1739D20D /* TripHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeroView.swift; sourceTree = "<group>"; };
 		CA6F32F457356E4D7A9748B9 /* DiscoverDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverDetailView.swift; sourceTree = "<group>"; };
 		CB25C5848ACE35A78CCAA2EB /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		D2BD7DDF591BC9771EB4A0B3 /* DiscoverProviders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverProviders.swift; sourceTree = "<group>"; };
+		D38CE43846FA6525121AA8A8 /* ConfirmationParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationParser.swift; sourceTree = "<group>"; };
 		D93EEA135031EAD5EEB59E31 /* TripInfoServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripInfoServices.swift; sourceTree = "<group>"; };
 		DB205CB55F275CA0281B5C43 /* DiscoverModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverModel.swift; sourceTree = "<group>"; };
 		DBEBECFEDEDC8DE9E48D45F4 /* AddFlightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFlightView.swift; sourceTree = "<group>"; };
@@ -70,6 +81,7 @@
 		E60A5A2946DF484C3848896A /* TravelHubApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelHubApp.swift; sourceTree = "<group>"; };
 		ED10A89F605448531BA3C8A5 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		EE0DA1562E5A32D36958465D /* FlightService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlightService.swift; sourceTree = "<group>"; };
+		EF48F1753A12D348059A0EE9 /* AirportLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirportLookup.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -144,6 +156,8 @@
 			children = (
 				DBEBECFEDEDC8DE9E48D45F4 /* AddFlightView.swift */,
 				8AA4B83867C58AD61F19AC8A /* FlightCardView.swift */,
+				7EC7AEBC2021108D54ECA14A /* ManualFlightForm.swift */,
+				09E28A900A127D248EE6D812 /* PasteFlightsForm.swift */,
 				11F1546336FD47750F8714CC /* StayViews.swift */,
 				795817CDFDE866E1C73C4583 /* TripDashboardView.swift */,
 				C08CC110AAAA4F2C1739D20D /* TripHeroView.swift */,
@@ -155,6 +169,10 @@
 		89F0221E798951C518BBE057 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				BE85157750BC76E435BC525B /* Airlines.swift */,
+				EF48F1753A12D348059A0EE9 /* AirportLookup.swift */,
+				25A0B526E75E16606CCB9BE4 /* ConfirmationImporter.swift */,
+				D38CE43846FA6525121AA8A8 /* ConfirmationParser.swift */,
 				D2BD7DDF591BC9771EB4A0B3 /* DiscoverProviders.swift */,
 				EE0DA1562E5A32D36958465D /* FlightService.swift */,
 				8AAD729FF281DD6ABEDFECB3 /* HTTP.swift */,
@@ -277,7 +295,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				B8FCE47F34A99F953A215AB0 /* AddFlightView.swift in Sources */,
+				FACC2448B476C3E0C1318AA7 /* Airlines.swift in Sources */,
+				0519D826AEACEFE6D525FF07 /* AirportLookup.swift in Sources */,
 				D75978292FE05B006236C11E /* Components.swift in Sources */,
+				C75FB4BD5EC545EB29B87BF9 /* ConfirmationImporter.swift in Sources */,
+				1A689128DDC4414D47780165 /* ConfirmationParser.swift in Sources */,
 				546BFE2972253BCFFF43F7A7 /* DiscoverCards.swift in Sources */,
 				D3EC40563DA11A476D8051DD /* DiscoverDetailView.swift in Sources */,
 				306B39787F310386DEC0A841 /* DiscoverItem.swift in Sources */,
@@ -288,7 +310,9 @@
 				AEF086DDCF0724EBAACC02C0 /* FlightService.swift in Sources */,
 				0A702297D3C3B1DBAA698B38 /* HTTP.swift in Sources */,
 				EE90891B8B956238402138E8 /* LocationSearch.swift in Sources */,
+				095D65E74FD20AB69FA40B7C /* ManualFlightForm.swift in Sources */,
 				AEE0549C1C3CB7E9F09EEB8A /* NewTripView.swift in Sources */,
+				D30F5848C9F4B7736C07A80A /* PasteFlightsForm.swift in Sources */,
 				B830123977EF9B689542A470 /* PlanItemEditor.swift in Sources */,
 				94114184883BABAE775204DD /* PlanView.swift in Sources */,
 				315F77BE4D41BE07682D6D09 /* RootView.swift in Sources */,

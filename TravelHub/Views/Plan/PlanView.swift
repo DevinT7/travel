@@ -120,7 +120,8 @@ struct PlanView: View {
                     .padding(.vertical, 6)
                 }
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                    if index > 0, let a = entries[index - 1].coordinate, let b = entry.coordinate {
+                    if index > 0, !isFlightLeg(entries[index - 1], entry),
+                       let a = entries[index - 1].coordinate, let b = entry.coordinate {
                         TravelRow(from: a, to: b, gap: entry.start.timeIntervalSince(entries[index - 1].end ?? entries[index - 1].start))
                             .listRowSeparator(.hidden)
                             .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 16))
@@ -163,6 +164,12 @@ struct PlanView: View {
         #endif
         .environment(\.defaultMinListRowHeight, 20)
         .scrollContentBackground(.hidden)
+    }
+
+    /// No ground travel estimate between a flight's departure and its landing.
+    private func isFlightLeg(_ a: TimelineEntry, _ b: TimelineEntry) -> Bool {
+        if case .flight(_, true) = a.kind, case .flight = b.kind { return true }
+        return false
     }
 
     private func summary(_ entries: [TimelineEntry]) -> String {

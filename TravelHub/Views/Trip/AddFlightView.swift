@@ -13,23 +13,62 @@ struct AddFlightView: View {
     @State private var isSearching = false
     @State private var error: String?
     @State private var showingSettings = false
+    @State private var mode: Mode
+
+    enum Mode: String, CaseIterable { case paste = "Paste", manual = "Enter", lookup = "Look Up" }
 
     init(trip: Trip) {
         self.trip = trip
         // Default to the trip's first day, or today if the trip has started.
         _date = State(initialValue: max(trip.startDate, .now))
+        let hasKey = !(UserDefaults.standard.string(forKey: APIKeys.aeroDataBoxKey) ?? "").isEmpty
+        _mode = State(initialValue: hasKey ? .lookup : .paste)
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    if aeroKey.isEmpty {
-                        NoticeBanner(symbol: "key.fill",
-                                     message: "Flight lookup uses AeroDataBox. Add a free API key in Settings to search real flights.",
-                                     actionTitle: "Open Settings") { showingSettings = true }
+                    Picker("How", selection: $mode) {
+                        ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                     }
+                    .pickerStyle(.segmented)
 
+                    switch mode {
+                    case .paste:
+                        PasteFlightsForm(trip: trip) { flights in
+                            flights.forEach(insert)
+                            dismiss()
+                        }
+                    case .manual:
+                        ManualFlightForm(trip: trip) { add($0) }
+                    case .lookup:
+                        if aeroKey.isEmpty {
+                            NoticeBanner(symbol: "key.fill",
+                                         message: "Looking up a flight number fills in times, terminals, gates and delays. It needs a free AeroDataBox key.",
+                                         actionTitle: "Add Key in Settings") { showingSettings = true }
+                        }
+                        lookupForm
+                    }
+                }
+                .padding(Metrics.gutter)
+                .readableWidth(560)
+            }
+            .background(Color.appBackground)
+            .navigationTitle("Add Flight")
+            .inlineTitle()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            }
+            .sheet(isPresented: $showingSettings) { NavigationStack { SettingsView() } }
+        }
+        #if os(macOS)
+        .frame(minWidth: 520, minHeight: 560)
+        #endif
+    }
+
+    @ViewBuilder
+    private var lookupForm: some View {
                     VStack(spacing: 0) {
                         HStack {
                             Image(systemName: "airplane").foregroundStyle(.secondary).frame(width: 24)
@@ -85,21 +124,6 @@ struct AddFlightView: View {
                             }
                         }
                     }
-                }
-                .padding(Metrics.gutter)
-                .readableWidth(560)
-            }
-            .background(Color.appBackground)
-            .navigationTitle("Add Flight")
-            .inlineTitle()
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-            }
-            .sheet(isPresented: $showingSettings) { NavigationStack { SettingsView() } }
-        }
-        #if os(macOS)
-        .frame(minWidth: 520, minHeight: 560)
-        #endif
     }
 
     private func search() async {
@@ -115,10 +139,14 @@ struct AddFlightView: View {
         }
     }
 
-    private func add(_ flight: FlightSegment) {
+    private func insert(_ flight: FlightSegment) {
         context.insert(flight)
         flight.trip = trip
         try? context.save()
+    }
+
+    private func add(_ flight: FlightSegment) {
+        insert(flight)
         results.removeAll { $0.id == flight.id }
         if results.isEmpty { dismiss() }
     }
