@@ -1,0 +1,524 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		027180B3F7D3BCD59F37C2F8 /* DiscoverProviders.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2BD7DDF591BC9771EB4A0B3 /* DiscoverProviders.swift */; };
+		02D5378E1F47EBD82AA9E0A5 /* DiscoverModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB205CB55F275CA0281B5C43 /* DiscoverModel.swift */; };
+		0A702297D3C3B1DBAA698B38 /* HTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AAD729FF281DD6ABEDFECB3 /* HTTP.swift */; };
+		0FA7CFDB31660ADE1B345DA5 /* TripsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41EA5FEB9BE10025E9C7D9B /* TripsListView.swift */; };
+		306B39787F310386DEC0A841 /* DiscoverItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1810BC901C449D05A827A606 /* DiscoverItem.swift */; };
+		30B1C0D4268B98233639164E /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB25C5848ACE35A78CCAA2EB /* SampleData.swift */; };
+		30B8C2CFB7AF486A90ABAB0E /* FlightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA4B83867C58AD61F19AC8A /* FlightCardView.swift */; };
+		315F77BE4D41BE07682D6D09 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD3F55323A8D14424D049AC /* RootView.swift */; };
+		34CC43E32C1352940C810C99 /* TripInfoServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = D93EEA135031EAD5EEB59E31 /* TripInfoServices.swift */; };
+		546BFE2972253BCFFF43F7A7 /* DiscoverCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67AC3EA4E34C4EAEF834004B /* DiscoverCards.swift */; };
+		6CE8944B43C4A626DFDC10B0 /* TripInfoViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAC45D1ECDE8B1E4E319B8B /* TripInfoViews.swift */; };
+		7E228F8F50A847B46279F9C6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5EAB2B84A06784ED599DF4E3 /* Assets.xcassets */; };
+		8411E25635CC53FC3DC6BC89 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742378157E7FCC5750997E28 /* SettingsView.swift */; };
+		89F859AE2A5219AE616E5E31 /* TripDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795817CDFDE866E1C73C4583 /* TripDashboardView.swift */; };
+		94114184883BABAE775204DD /* PlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CE8C815F32EA64A22554B35 /* PlanView.swift */; };
+		AEE0549C1C3CB7E9F09EEB8A /* NewTripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34F6917529E6C5F4F338754 /* NewTripView.swift */; };
+		AEF086DDCF0724EBAACC02C0 /* FlightService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE0DA1562E5A32D36958465D /* FlightService.swift */; };
+		B7406B90CF8DFE68B183145A /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67FE8885139D11B23323018F /* Trip.swift */; };
+		B830123977EF9B689542A470 /* PlanItemEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7FB815F7F9A9FF57CBD81D5 /* PlanItemEditor.swift */; };
+		B8FCE47F34A99F953A215AB0 /* AddFlightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBEBECFEDEDC8DE9E48D45F4 /* AddFlightView.swift */; };
+		D1A8C3ECADE1C39DEBBBDB75 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED10A89F605448531BA3C8A5 /* Theme.swift */; };
+		D2400A77CCA35257E5755482 /* TripHeroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08CC110AAAA4F2C1739D20D /* TripHeroView.swift */; };
+		D3EC40563DA11A476D8051DD /* DiscoverDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA6F32F457356E4D7A9748B9 /* DiscoverDetailView.swift */; };
+		D75978292FE05B006236C11E /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EAFDE07900D75881C069C2 /* Components.swift */; };
+		D7F5AFE31644445D7B0505D3 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A483DF3D546707E44BC40EC /* DiscoverView.swift */; };
+		D93B7839E19C049C53187E92 /* TravelHubApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E60A5A2946DF484C3848896A /* TravelHubApp.swift */; };
+		EC0898C266577D072734AFA3 /* StayViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F1546336FD47750F8714CC /* StayViews.swift */; };
+		EE90891B8B956238402138E8 /* LocationSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73ADFE076ABA029ED5689B44 /* LocationSearch.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		11F1546336FD47750F8714CC /* StayViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StayViews.swift; sourceTree = "<group>"; };
+		1810BC901C449D05A827A606 /* DiscoverItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverItem.swift; sourceTree = "<group>"; };
+		375B9394805B4548B6FB9196 /* TravelHub-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "TravelHub-macOS.entitlements"; sourceTree = "<group>"; };
+		5EAB2B84A06784ED599DF4E3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		67AC3EA4E34C4EAEF834004B /* DiscoverCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCards.swift; sourceTree = "<group>"; };
+		67FE8885139D11B23323018F /* Trip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trip.swift; sourceTree = "<group>"; };
+		73ADFE076ABA029ED5689B44 /* LocationSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearch.swift; sourceTree = "<group>"; };
+		742378157E7FCC5750997E28 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		795817CDFDE866E1C73C4583 /* TripDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripDashboardView.swift; sourceTree = "<group>"; };
+		7A483DF3D546707E44BC40EC /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
+		7AAC45D1ECDE8B1E4E319B8B /* TripInfoViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripInfoViews.swift; sourceTree = "<group>"; };
+		7BD3F55323A8D14424D049AC /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		8AA4B83867C58AD61F19AC8A /* FlightCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlightCardView.swift; sourceTree = "<group>"; };
+		8AAD729FF281DD6ABEDFECB3 /* HTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTP.swift; sourceTree = "<group>"; };
+		8CE8C815F32EA64A22554B35 /* PlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanView.swift; sourceTree = "<group>"; };
+		93EAFDE07900D75881C069C2 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		A41EA5FEB9BE10025E9C7D9B /* TripsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsListView.swift; sourceTree = "<group>"; };
+		A8B9F9B8B574D9AB89DE266F /* TravelHub.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TravelHub.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B7FB815F7F9A9FF57CBD81D5 /* PlanItemEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanItemEditor.swift; sourceTree = "<group>"; };
+		C08CC110AAAA4F2C1739D20D /* TripHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeroView.swift; sourceTree = "<group>"; };
+		CA6F32F457356E4D7A9748B9 /* DiscoverDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverDetailView.swift; sourceTree = "<group>"; };
+		CB25C5848ACE35A78CCAA2EB /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+		D2BD7DDF591BC9771EB4A0B3 /* DiscoverProviders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverProviders.swift; sourceTree = "<group>"; };
+		D93EEA135031EAD5EEB59E31 /* TripInfoServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripInfoServices.swift; sourceTree = "<group>"; };
+		DB205CB55F275CA0281B5C43 /* DiscoverModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverModel.swift; sourceTree = "<group>"; };
+		DBEBECFEDEDC8DE9E48D45F4 /* AddFlightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFlightView.swift; sourceTree = "<group>"; };
+		E34F6917529E6C5F4F338754 /* NewTripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewTripView.swift; sourceTree = "<group>"; };
+		E60A5A2946DF484C3848896A /* TravelHubApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelHubApp.swift; sourceTree = "<group>"; };
+		ED10A89F605448531BA3C8A5 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		EE0DA1562E5A32D36958465D /* FlightService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlightService.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0CDBEDA97611A639321388E4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A8B9F9B8B574D9AB89DE266F /* TravelHub.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		25BC0491F8FEEE31CD25191F /* Discover */ = {
+			isa = PBXGroup;
+			children = (
+				67AC3EA4E34C4EAEF834004B /* DiscoverCards.swift */,
+				CA6F32F457356E4D7A9748B9 /* DiscoverDetailView.swift */,
+				DB205CB55F275CA0281B5C43 /* DiscoverModel.swift */,
+				7A483DF3D546707E44BC40EC /* DiscoverView.swift */,
+			);
+			path = Discover;
+			sourceTree = "<group>";
+		};
+		2C0E9ECE966197E0AD2D51C9 = {
+			isa = PBXGroup;
+			children = (
+				D66157CAA5C20A02EC24A28E /* TravelHub */,
+				0CDBEDA97611A639321388E4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		3399CBA3D26FF62D8117FC7A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				1810BC901C449D05A827A606 /* DiscoverItem.swift */,
+				67FE8885139D11B23323018F /* Trip.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		4FD6CD2A4806B2015BBBDD20 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				7BD3F55323A8D14424D049AC /* RootView.swift */,
+				E60A5A2946DF484C3848896A /* TravelHubApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		7B6C0025FC1B36B0952B7899 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				5EAB2B84A06784ED599DF4E3 /* Assets.xcassets */,
+				375B9394805B4548B6FB9196 /* TravelHub-macOS.entitlements */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		7D93BD9464718F5BD4C540D7 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				BF2BEB252A409C62105DE86C /* Common */,
+				25BC0491F8FEEE31CD25191F /* Discover */,
+				A5D9091226370B1D912B1765 /* Plan */,
+				8426230F6DB2C0397E8C98D1 /* Trip */,
+				A37469F6DADD4CF745293D31 /* Trips */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		8426230F6DB2C0397E8C98D1 /* Trip */ = {
+			isa = PBXGroup;
+			children = (
+				DBEBECFEDEDC8DE9E48D45F4 /* AddFlightView.swift */,
+				8AA4B83867C58AD61F19AC8A /* FlightCardView.swift */,
+				11F1546336FD47750F8714CC /* StayViews.swift */,
+				795817CDFDE866E1C73C4583 /* TripDashboardView.swift */,
+				C08CC110AAAA4F2C1739D20D /* TripHeroView.swift */,
+				7AAC45D1ECDE8B1E4E319B8B /* TripInfoViews.swift */,
+			);
+			path = Trip;
+			sourceTree = "<group>";
+		};
+		89F0221E798951C518BBE057 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				D2BD7DDF591BC9771EB4A0B3 /* DiscoverProviders.swift */,
+				EE0DA1562E5A32D36958465D /* FlightService.swift */,
+				8AAD729FF281DD6ABEDFECB3 /* HTTP.swift */,
+				73ADFE076ABA029ED5689B44 /* LocationSearch.swift */,
+				CB25C5848ACE35A78CCAA2EB /* SampleData.swift */,
+				D93EEA135031EAD5EEB59E31 /* TripInfoServices.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A37469F6DADD4CF745293D31 /* Trips */ = {
+			isa = PBXGroup;
+			children = (
+				E34F6917529E6C5F4F338754 /* NewTripView.swift */,
+				742378157E7FCC5750997E28 /* SettingsView.swift */,
+				A41EA5FEB9BE10025E9C7D9B /* TripsListView.swift */,
+			);
+			path = Trips;
+			sourceTree = "<group>";
+		};
+		A5D9091226370B1D912B1765 /* Plan */ = {
+			isa = PBXGroup;
+			children = (
+				B7FB815F7F9A9FF57CBD81D5 /* PlanItemEditor.swift */,
+				8CE8C815F32EA64A22554B35 /* PlanView.swift */,
+			);
+			path = Plan;
+			sourceTree = "<group>";
+		};
+		BF2BEB252A409C62105DE86C /* Common */ = {
+			isa = PBXGroup;
+			children = (
+				93EAFDE07900D75881C069C2 /* Components.swift */,
+				ED10A89F605448531BA3C8A5 /* Theme.swift */,
+			);
+			path = Common;
+			sourceTree = "<group>";
+		};
+		D66157CAA5C20A02EC24A28E /* TravelHub */ = {
+			isa = PBXGroup;
+			children = (
+				4FD6CD2A4806B2015BBBDD20 /* App */,
+				3399CBA3D26FF62D8117FC7A /* Models */,
+				7B6C0025FC1B36B0952B7899 /* Resources */,
+				89F0221E798951C518BBE057 /* Services */,
+				7D93BD9464718F5BD4C540D7 /* Views */,
+			);
+			path = TravelHub;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C4F0BA73B7EB8928DE2E4E21 /* TravelHub */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4D39BE1B5E98B5F6C796BFD4 /* Build configuration list for PBXNativeTarget "TravelHub" */;
+			buildPhases = (
+				CA75944EC2C4D78A4DFAE120 /* Sources */,
+				4B3AF04F86515F9731F2CDDB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TravelHub;
+			packageProductDependencies = (
+			);
+			productName = TravelHub;
+			productReference = A8B9F9B8B574D9AB89DE266F /* TravelHub.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C2953B618138B3759D0F12BE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					C4F0BA73B7EB8928DE2E4E21 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 805E8DA63587C0F9D6EF2130 /* Build configuration list for PBXProject "TravelHub" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 2C0E9ECE966197E0AD2D51C9;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0CDBEDA97611A639321388E4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C4F0BA73B7EB8928DE2E4E21 /* TravelHub */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4B3AF04F86515F9731F2CDDB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E228F8F50A847B46279F9C6 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CA75944EC2C4D78A4DFAE120 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B8FCE47F34A99F953A215AB0 /* AddFlightView.swift in Sources */,
+				D75978292FE05B006236C11E /* Components.swift in Sources */,
+				546BFE2972253BCFFF43F7A7 /* DiscoverCards.swift in Sources */,
+				D3EC40563DA11A476D8051DD /* DiscoverDetailView.swift in Sources */,
+				306B39787F310386DEC0A841 /* DiscoverItem.swift in Sources */,
+				02D5378E1F47EBD82AA9E0A5 /* DiscoverModel.swift in Sources */,
+				027180B3F7D3BCD59F37C2F8 /* DiscoverProviders.swift in Sources */,
+				D7F5AFE31644445D7B0505D3 /* DiscoverView.swift in Sources */,
+				30B8C2CFB7AF486A90ABAB0E /* FlightCardView.swift in Sources */,
+				AEF086DDCF0724EBAACC02C0 /* FlightService.swift in Sources */,
+				0A702297D3C3B1DBAA698B38 /* HTTP.swift in Sources */,
+				EE90891B8B956238402138E8 /* LocationSearch.swift in Sources */,
+				AEE0549C1C3CB7E9F09EEB8A /* NewTripView.swift in Sources */,
+				B830123977EF9B689542A470 /* PlanItemEditor.swift in Sources */,
+				94114184883BABAE775204DD /* PlanView.swift in Sources */,
+				315F77BE4D41BE07682D6D09 /* RootView.swift in Sources */,
+				30B1C0D4268B98233639164E /* SampleData.swift in Sources */,
+				8411E25635CC53FC3DC6BC89 /* SettingsView.swift in Sources */,
+				EC0898C266577D072734AFA3 /* StayViews.swift in Sources */,
+				D1A8C3ECADE1C39DEBBBDB75 /* Theme.swift in Sources */,
+				D93B7839E19C049C53187E92 /* TravelHubApp.swift in Sources */,
+				B7406B90CF8DFE68B183145A /* Trip.swift in Sources */,
+				89F859AE2A5219AE616E5E31 /* TripDashboardView.swift in Sources */,
+				D2400A77CCA35257E5755482 /* TripHeroView.swift in Sources */,
+				34CC43E32C1352940C810C99 /* TripInfoServices.swift in Sources */,
+				6CE8944B43C4A626DFDC10B0 /* TripInfoViews.swift in Sources */,
+				0FA7CFDB31660ADE1B345DA5 /* TripsListView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		07FB7FF17576F4025CBB98C0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "TravelHub/Resources/TravelHub-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = TravelHub;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.devint.travelhub;
+				PRODUCT_NAME = TravelHub;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		33C00A6539D2B1F5A8670A73 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		879D66A91FBE81BB45C389BE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BC4B1CBB63EBFF01EB10ED83 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "TravelHub/Resources/TravelHub-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = TravelHub;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.devint.travelhub;
+				PRODUCT_NAME = TravelHub;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4D39BE1B5E98B5F6C796BFD4 /* Build configuration list for PBXNativeTarget "TravelHub" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BC4B1CBB63EBFF01EB10ED83 /* Debug */,
+				07FB7FF17576F4025CBB98C0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		805E8DA63587C0F9D6EF2130 /* Build configuration list for PBXProject "TravelHub" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				879D66A91FBE81BB45C389BE /* Debug */,
+				33C00A6539D2B1F5A8670A73 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C2953B618138B3759D0F12BE /* Project object */;
+}
