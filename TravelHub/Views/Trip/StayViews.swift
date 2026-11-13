@@ -14,51 +14,51 @@ struct StayCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: "bed.double.fill")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.indigo.gradient, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                CircleIcon(symbol: "bed.double.fill", color: .stay, size: 36)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(stay.name).font(.headline).lineLimit(1)
-                    Text(stay.address).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(stay.address).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
-                Spacer()
-                Text("\(nights) night\(nights == 1 ? "" : "s")")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            }
-            HStack(alignment: .top) {
-                timeBlock("Check-in", stay.checkIn)
-                Spacer()
-                Image(systemName: "arrow.right").foregroundStyle(.tertiary).padding(.top, 14)
-                Spacer()
-                timeBlock("Check-out", stay.checkOut, trailing: true)
-            }
-            HStack {
-                if !stay.confirmationNumber.isEmpty {
-                    Label(stay.confirmationNumber, systemImage: "number")
-                        .font(.caption.monospaced()).foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                }
-                Spacer()
-                Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill") {
+                Spacer(minLength: 4)
+                Button {
                     let item = MKMapItem(placemark: MKPlacemark(coordinate: stay.coordinate))
                     item.name = stay.name
                     item.openInMaps()
+                } label: {
+                    Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                        .font(.title3)
+                        .foregroundStyle(.tint)
                 }
-                .font(.caption.weight(.semibold))
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Directions")
+            }
+            Divider()
+            HStack(alignment: .top) {
+                timeBlock("Check-in", stay.checkIn)
+                Spacer()
+                Text("\(nights) night\(nights == 1 ? "" : "s")")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(Color.insetBackground, in: Capsule())
+                    .padding(.top, 8)
+                Spacer()
+                timeBlock("Check-out", stay.checkOut, trailing: true)
+            }
+            if !stay.confirmationNumber.isEmpty {
+                Text("Confirmation \(stay.confirmationNumber)")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .textSelection(.enabled)
             }
         }
-        .card(padding: 18)
+        .card()
     }
 
     private func timeBlock(_ label: String, _ date: Date, trailing: Bool = false) -> some View {
         VStack(alignment: trailing ? .trailing : .leading, spacing: 2) {
-            Text(label).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-            Text(date.weekdayDayMonth(in: tz)).font(.headline)
-            Text(date.time(in: tz)).font(.subheadline).foregroundStyle(.secondary)
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(date.weekdayDayMonth(in: tz)).font(.subheadline.weight(.semibold))
+            Text(date.time(in: tz)).font(.caption).foregroundStyle(.secondary)
         }
     }
 }

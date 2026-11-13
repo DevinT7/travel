@@ -13,26 +13,47 @@ struct TripDashboardView: View {
     @State private var showingAddFlight = false
     @State private var showingAddStay = false
     @State private var editingStay: Stay?
+    @State private var addingActivity = false
     @State private var refreshError: String?
 
-    private let columns = [GridItem(.adaptive(minimum: 340), spacing: 16, alignment: .top)]
+    private let columns = [GridItem(.adaptive(minimum: 340), spacing: 12, alignment: .top)]
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
+            VStack(spacing: 24) {
                 TripHeroView(trip: trip)
+                    #if os(iOS)
+                    .overlay(alignment: .topTrailing) {
+                        TripSwitcherMenu {
+                            Image(systemName: "suitcase")
+                                .font(.body.weight(.medium))
+                                .frame(width: 40, height: 40)
+                                .background(.regularMaterial, in: Circle())
+                        }
+                        .padding(.trailing, Metrics.gutter)
+                        .padding(.top, 8)
+                    }
+                    #endif
+
+                HStack(spacing: 8) {
+                    QuickAction(title: "Flight", symbol: "airplane") { showingAddFlight = true }
+                    QuickAction(title: "Stay", symbol: "bed.double") { showingAddStay = true }
+                    QuickAction(title: "Activity", symbol: "plus") { addingActivity = true }
+                    QuickAction(title: "Discover", symbol: "mappin.and.ellipse") { model.selectedTab = .discover }
+                }
+                .padding(.top, -6)
 
                 VStack(alignment: .leading, spacing: 28) {
                     if trip.isSample {
                         NoticeBanner(symbol: "sparkles",
-                                     message: "This is a sample trip with made-up flights. Create your own trip to look up real flights.",
+                                     message: "This is a sample trip with made-up flights. Create your own to look up real ones.",
                                      actionTitle: "New Trip") { model.isPresentingNewTrip = true }
                     }
                     flightsSection
+                    upNextSection
                     staySection
                     weatherSection
                     goodToKnowSection
-                    upNextSection
                 }
                 .padding(.horizontal, Metrics.gutter)
                 .readableWidth()
@@ -42,20 +63,27 @@ struct TripDashboardView: View {
         .background(Color.appBackground)
         .navigationTitle(trip.displayName)
         .inlineTitle()
+        #if os(iOS)
+        .toolbar(.hidden, for: .navigationBar)
+        .statusBarFade()
+        #else
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button("Add Flight", systemImage: "airplane") { showingAddFlight = true }
                     Button("Add Stay", systemImage: "bed.double") { showingAddStay = true }
+                    Button("Add Activity", systemImage: "plus") { addingActivity = true }
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
             }
         }
+        #endif
         .refreshable { await refreshAll() }
         .task(id: trip.id) { await loadInfo() }
         .sheet(isPresented: $showingAddFlight) { AddFlightView(trip: trip) }
         .sheet(isPresented: $showingAddStay) { StayEditorView(trip: trip, stay: nil) }
+        .sheet(isPresented: $addingActivity) { PlanItemEditor(trip: trip, mode: .custom(day: nil)) }
         .sheet(item: $editingStay) { StayEditorView(trip: trip, stay: $0) }
         .alert("Couldn't refresh flights", isPresented: .init(get: { refreshError != nil }, set: { if !$0 { refreshError = nil } })) {
             Button("OK", role: .cancel) {}
@@ -64,16 +92,13 @@ struct TripDashboardView: View {
 
     // MARK: Sections
 
+    @ViewBuilder
     private var flightsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader("Flights") {
-                Button("Add", systemImage: "plus") { showingAddFlight = true }.labelStyle(.titleAndIcon)
-            }
-            if trip.sortedFlights.isEmpty {
-                addPrompt(symbol: "airplane", title: "Add your flight",
-                          text: "Enter a flight number to get times, terminals, gates and a route map.") { showingAddFlight = true }
-            } else {
-                LazyVGrid(columns: columns, spacing: 16) {
+        if !trip.sortedFlights.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader("Flights") { SeeAllButton(title: "Add") { showingAddFlight = true } }
+                RouteMapCard(trip: trip)
+                LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(trip.sortedFlights) { flight in
                         FlightCardView(flight: flight)
                             .contextMenu {
@@ -91,16 +116,12 @@ struct TripDashboardView: View {
         }
     }
 
+    @ViewBuilder
     private var staySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader("Where you're staying") {
-                Button("Add", systemImage: "plus") { showingAddStay = true }.labelStyle(.titleAndIcon)
-            }
-            if trip.sortedStays.isEmpty {
-                addPrompt(symbol: "bed.double.fill", title: "Add your hotel or rental",
-                          text: "It shows on your plan's map and as the start of each day.") { showingAddStay = true }
-            } else {
-                LazyVGrid(columns: columns, spacing: 16) {
+        if !trip.sortedStays.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader("Stay") { SeeAllButton(title: "Add") { showingAddStay = true } }
+                LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(trip.sortedStays) { stay in
                         StayCardView(stay: stay, tz: trip.timeZone)
                             .onTapGesture { editingStay = stay }
@@ -118,14 +139,14 @@ struct TripDashboardView: View {
 
     private var weatherSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader("Weather in \(trip.destinationName)")
+            SectionHeader("Weather")
             WeatherStripView(forecast: forecast, loaded: forecastLoaded, tz: trip.timeZone)
         }
     }
 
     private var goodToKnowSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader("Good to know")
+            SectionHeader("Good to Know")
             LocalInfoView(trip: trip, exchangeRate: exchangeRate)
         }
     }
@@ -133,51 +154,36 @@ struct TripDashboardView: View {
     @ViewBuilder
     private var upNextSection: some View {
         let reference = max(Date.now, trip.startDate)
-        let next = (trip.planItems ?? []).filter { $0.isScheduled && $0.end >= reference }.sorted { $0.start < $1.start }.prefix(4)
-        if !next.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeader("Up next") {
-                    Button("Full plan") { model.selectedTab = .plan }
-                }
-                VStack(spacing: 0) {
-                    ForEach(Array(next.enumerated()), id: \.element.id) { index, item in
-                        HStack(spacing: 14) {
-                            CategoryIcon(category: item.category, size: 38)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.title).font(.headline).lineLimit(1)
-                                Text("\(item.start.weekdayDayMonth(in: trip.timeZone)) · \(item.start.time(in: trip.timeZone))")
-                                    .font(.subheadline).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-                        .padding(.vertical, 10)
-                        if index < next.count - 1 { Divider().padding(.leading, 52) }
+        let next = Array((trip.planItems ?? []).filter { $0.isScheduled && $0.end >= reference }.sorted { $0.start < $1.start }.prefix(4))
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader("Itinerary") { SeeAllButton(title: "View All") { model.selectedTab = .plan } }
+            VStack(spacing: 0) {
+                if next.isEmpty {
+                    HStack {
+                        Text("Nothing scheduled yet. Save places in Discover, then give them a time.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        Spacer()
                     }
+                    .padding(Metrics.gutter)
                 }
-                .card(padding: 14)
-            }
-        }
-    }
-
-    private func addPrompt(symbol: String, title: String, text: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                Image(systemName: symbol)
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.tint)
-                    .frame(width: 48, height: 48)
-                    .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.headline)
-                    Text(text).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.leading)
+                ForEach(Array(next.enumerated()), id: \.element.id) { index, item in
+                    HStack(spacing: 12) {
+                        CategoryIcon(category: item.category, size: 30)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(item.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                            Text(item.start.weekdayDayMonth(in: trip.timeZone)).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 8)
+                        Text(item.start.time(in: trip.timeZone)).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                    }
+                    .padding(.horizontal, Metrics.gutter)
+                    .padding(.vertical, 11)
+                    if index < next.count - 1 { Divider().padding(.leading, 58) }
                 }
-                Spacer()
-                Image(systemName: "plus.circle.fill").font(.title2).foregroundStyle(.tint)
             }
-            .card()
-            .contentShape(Rectangle())
+            .padding(.vertical, 4)
+            .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: Data

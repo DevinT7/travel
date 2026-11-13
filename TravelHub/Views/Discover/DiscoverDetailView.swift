@@ -28,14 +28,16 @@ struct DiscoverDetailView: View {
                         titleBlock
                         addButton
                         if let summary, !summary.isEmpty {
-                            Text(summary).font(.body).foregroundStyle(.primary.opacity(0.85))
+                            Text(summary)
+                                .font(.body)
+                                .foregroundStyle(.primary.opacity(0.85))
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         locationBlock
                         linksBlock
                         Text("Source: \(item.source.rawValue)").font(.caption).foregroundStyle(.tertiary)
                     }
-                    .padding(20)
+                    .padding(Metrics.gutter)
                 }
             }
             .background(Color.appBackground)
@@ -60,38 +62,36 @@ struct DiscoverDetailView: View {
 
     private var photoURL: URL? { heroURL ?? item.imageURL }
 
-    /// Photo if we have one, otherwise an interactive Look Around street view, otherwise a short color header.
+    /// Photo if we have one, otherwise an interactive Look Around view, otherwise a short tinted header.
     @ViewBuilder
     private var hero: some View {
         if photoURL == nil, let lookAround {
             LookAroundPreview(initialScene: lookAround, allowsNavigation: true, badgePosition: .bottomTrailing)
-                .frame(height: 280)
+                .frame(height: 300)
         } else {
-            PlaceImage(url: photoURL, category: item.category)
-                .frame(height: photoURL == nil ? 170 : 280)
+            PlaceImage(url: photoURL, category: item.category, symbolSize: 44)
+                .frame(height: photoURL == nil ? 180 : 300)
                 .frame(maxWidth: .infinity)
         }
     }
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: item.category.symbol)
-                Text(item.category.title)
+            Label(item.category.title, systemImage: item.category.symbol)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(item.category.color)
+            Text(item.title).font(.title.bold())
+            Text(item.subtitle).font(.subheadline).foregroundStyle(.secondary)
+            HStack(spacing: 14) {
+                if let date = item.eventDate {
+                    Label(date.weekdayDayMonth(in: trip.timeZone) + ", " + date.time(in: trip.timeZone), systemImage: "calendar")
+                }
+                if let price = item.priceText { Label(price, systemImage: "tag") }
+                if let d = distanceText(distance) { Label(d, systemImage: "location") }
             }
-            .font(.caption.weight(.bold))
-            .foregroundStyle(item.category.color)
-            .textCase(.uppercase)
-            Text(item.title).font(.system(.largeTitle, design: .rounded).bold())
-            Text(item.subtitle).font(.headline).foregroundStyle(.secondary)
-            if let date = item.eventDate {
-                Label(date.weekdayDayMonth(in: trip.timeZone) + " · " + date.time(in: trip.timeZone), systemImage: "calendar")
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.top, 4)
-            }
-            if let price = item.priceText {
-                Label(price, systemImage: "tag").font(.subheadline)
-            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.top, 2)
         }
     }
 
@@ -99,11 +99,12 @@ struct DiscoverDetailView: View {
         Button {
             showingScheduler = true
         } label: {
-            Label(existing == nil ? "Add to Plan" : (existing!.isScheduled ? "In your plan · Edit" : "Saved · Pick a time"),
+            Label(existing == nil ? "Add to Plan" : (existing!.isScheduled ? "In Your Plan" : "Saved · Pick a Time"),
                   systemImage: existing == nil ? "calendar.badge.plus" : "checkmark.circle.fill")
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
         .controlSize(.large)
         .tint(existing == nil ? Color.accentColor : .green)
     }
@@ -111,35 +112,38 @@ struct DiscoverDetailView: View {
     @ViewBuilder
     private var locationBlock: some View {
         if let coordinate = item.coordinate {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 0) {
                 Map(initialPosition: .region(MKCoordinateRegion(center: coordinate, latitudinalMeters: 1200, longitudinalMeters: 1200))) {
                     Marker(item.title, systemImage: item.category.symbol, coordinate: coordinate).tint(item.category.color)
                     ForEach(trip.sortedStays) { stay in
-                        Marker(stay.name, systemImage: "bed.double.fill", coordinate: stay.coordinate).tint(.indigo)
+                        Marker(stay.name, systemImage: "bed.double.fill", coordinate: stay.coordinate).tint(Color.stay)
                     }
                 }
                 .frame(height: 170)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .allowsHitTesting(false)
 
-                HStack(alignment: .top) {
+                HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        if !item.address.isEmpty { Text(item.address).font(.subheadline) }
-                        if let distance {
-                            Text("\(Measurement(value: distance, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road))) from \(trip.sortedStays.isEmpty ? "the city center" : "your stay")")
+                        Text(item.address.isEmpty ? item.title : item.address).font(.subheadline).lineLimit(2)
+                        if let d = distanceText(distance) {
+                            Text("\(d) from \(trip.sortedStays.isEmpty ? "the city center" : "your stay")")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     Spacer()
-                    Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill") {
+                    Button("Directions") {
                         let mi = mapItem ?? MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
                         if mapItem == nil { mi.name = item.title }
                         mi.openInMaps()
                     }
                     .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
                     .controlSize(.small)
                 }
+                .padding(14)
             }
+            .background(Color.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         }
     }
 
@@ -147,36 +151,40 @@ struct DiscoverDetailView: View {
         VStack(spacing: 0) {
             #if os(iOS)
             if mapItem != nil {
-                linkRow("Apple Maps place card", "Photos, ratings, hours", "map.fill") { showingAppleCard = true }
+                linkRow("Apple Maps Place Card", "Photos, ratings, hours", "map.fill", .blue) { showingAppleCard = true }
+                Divider().padding(.leading, 58)
             }
             #endif
             if let url = item.externalURL {
                 let (title, symbol): (String, String) = switch item.source {
                 case .wikipedia: ("Read on Wikipedia", "book.closed.fill")
-                case .ticketmaster: ("Get tickets", "ticket.fill")
+                case .ticketmaster: ("Get Tickets", "ticket.fill")
                 default: ("Website", "safari.fill")
                 }
-                linkRow(title, url.host() ?? "", symbol) { openURL(url) }
+                linkRow(title, url.host() ?? "", symbol, .gray) { openURL(url) }
             }
             if let phone = item.phone, let url = URL(string: "tel:\(phone.filter { $0.isNumber || $0 == "+" })") {
-                linkRow("Call", phone, "phone.fill") { openURL(url) }
+                Divider().padding(.leading, 58)
+                linkRow("Call", phone, "phone.fill", .green) { openURL(url) }
             }
         }
-        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.vertical, 4)
+        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
     }
 
-    private func linkRow(_ title: String, _ subtitle: String, _ symbol: String, action: @escaping () -> Void) -> some View {
+    private func linkRow(_ title: String, _ subtitle: String, _ symbol: String, _ color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: symbol).foregroundStyle(.tint).frame(width: 24)
+                CircleIcon(symbol: symbol, color: color, size: 30)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).foregroundStyle(.primary)
+                    Text(title).font(.subheadline).foregroundStyle(.primary)
                     if !subtitle.isEmpty { Text(subtitle).font(.caption).foregroundStyle(.secondary) }
                 }
                 Spacer()
                 Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
             }
-            .padding(14)
+            .padding(.horizontal, Metrics.gutter)
+            .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

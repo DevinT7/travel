@@ -38,17 +38,33 @@ enum DiscoverCategory: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// Apple Maps-style category colors.
     var color: Color {
         switch self {
-        case .sights: Color(red: 0.95, green: 0.55, blue: 0.15)
-        case .food: Color(red: 0.93, green: 0.33, blue: 0.31)
-        case .cafes: Color(red: 0.62, green: 0.43, blue: 0.30)
-        case .nightlife: Color(red: 0.58, green: 0.35, blue: 0.86)
-        case .culture: Color(red: 0.86, green: 0.30, blue: 0.56)
-        case .outdoors: Color(red: 0.20, green: 0.68, blue: 0.40)
-        case .shopping: Color(red: 0.95, green: 0.70, blue: 0.10)
-        case .events: Color(red: 0.12, green: 0.55, blue: 0.95)
+        case .sights: .teal
+        case .food: .orange
+        case .cafes: .brown
+        case .nightlife: .purple
+        case .culture: .pink
+        case .outdoors: .green
+        case .shopping: Color(hex: 0xE0A800)
+        case .events: .red
         case .other: .gray
+        }
+    }
+
+    /// Section headline for Discover.
+    var headline: String {
+        switch self {
+        case .sights: "Top sights"
+        case .food: "Where to eat"
+        case .cafes: "Coffee"
+        case .nightlife: "After dark"
+        case .culture: "Museums & arts"
+        case .outdoors: "Parks & outdoors"
+        case .shopping: "Shops & markets"
+        case .events: "What's on"
+        case .other: "More"
         }
     }
 

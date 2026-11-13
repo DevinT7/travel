@@ -1,7 +1,11 @@
 import SwiftUI
 import MapKit
 
-/// Photo card used in carousels and grids.
+func distanceText(_ d: CLLocationDistance?) -> String? {
+    d.map { Measurement(value: $0, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road)) }
+}
+
+/// Photo card used for sights and events: photo on top, name and details underneath.
 struct DiscoverCard: View {
     let item: DiscoverItem
     let distance: CLLocationDistance?
@@ -12,116 +16,100 @@ struct DiscoverCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             PlaceImage(url: item.imageURL, category: item.category)
-                .frame(height: 150)
+                .frame(height: 160)
                 .frame(maxWidth: .infinity)
+                .overlay(alignment: .topTrailing) { SaveButton(isSaved: isSaved, action: onToggleSave).padding(10) }
                 .overlay(alignment: .topLeading) {
                     if let date = item.eventDate {
                         Text(date.formatted(.dateTime.month(.abbreviated).day()))
                             .font(.caption.weight(.bold))
                             .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(.ultraThinMaterial, in: Capsule())
+                            .background(.regularMaterial, in: Capsule())
                             .padding(10)
                     }
                 }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(item.title)
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                     .lineLimit(2, reservesSpace: true)
                     .multilineTextAlignment(.leading)
-                Text(item.subtitle)
+                Text(detailLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                HStack(spacing: 6) {
-                    Image(systemName: item.category.symbol).foregroundStyle(item.category.color)
-                    if let distance {
-                        Text(Measurement(value: distance, unit: UnitLength.meters)
-                            .formatted(.measurement(width: .abbreviated, usage: .road)))
-                    }
-                    if let price = item.priceText { Text("· \(price)") }
-                }
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.top, 2)
             }
             .padding(12)
         }
         .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(alignment: .topTrailing) { saveButton.padding(10) }
-        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .onTapGesture(perform: onOpen)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: isSaved ? "Remove from plan" : "Save to plan", onToggleSave)
     }
 
-    private var saveButton: some View {
-        Button(action: onToggleSave) {
-            Image(systemName: isSaved ? "checkmark" : "plus")
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(isSaved ? Color.white : Color.primary)
-                .frame(width: 32, height: 32)
-                .background {
-                    if isSaved { Circle().fill(Color.accentColor) } else { Circle().fill(.regularMaterial) }
-                }
-                .contentTransition(.symbolEffect(.replace))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isSaved ? "Saved to plan" : "Save to plan")
+    private var detailLine: String {
+        [distanceText(distance), item.priceText, item.subtitle].compactMap { $0 }.joined(separator: " · ")
     }
 }
 
-/// Big hero card at the top of "For You".
+/// Big photo card at the top of "For You".
 struct FeaturedCard: View {
     let item: DiscoverItem
+    let distance: CLLocationDistance?
     let isSaved: Bool
     let onOpen: () -> Void
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            PlaceImage(url: item.imageURL, category: item.category)
-                .frame(height: 280)
-                .frame(maxWidth: .infinity)
-            LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .center, endPoint: .bottom)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("MUST SEE").font(.caption.weight(.heavy)).tracking(1).opacity(0.85)
-                Text(item.title).font(.system(.title, design: .rounded).bold())
-                Text(item.subtitle).font(.subheadline).opacity(0.9).lineLimit(1)
+        PlaceImage(url: item.imageURL, category: item.category)
+            .frame(height: 300)
+            .frame(maxWidth: .infinity)
+            .overlay {
+                LinearGradient(colors: [.clear, .black.opacity(0.65)], startPoint: .center, endPoint: .bottom)
             }
-            .foregroundStyle(.white)
-            .padding(20)
-            if isSaved {
-                Label("In your plan", systemImage: "checkmark.circle.fill")
-                    .font(.caption.weight(.bold))
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .padding(14)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Top pick").font(.caption.weight(.semibold)).opacity(0.85)
+                    Text(item.title).font(.title2.bold()).lineLimit(2)
+                    Text([item.subtitle, distanceText(distance)].compactMap { $0 }.joined(separator: " · "))
+                        .font(.subheadline).opacity(0.85).lineLimit(1)
+                }
+                .foregroundStyle(.white)
+                .padding(18)
             }
-        }
-        .frame(height: 280)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onOpen)
-        .accessibilityAddTraits(.isButton)
+            .overlay(alignment: .topTrailing) {
+                if isSaved {
+                    Label("Saved", systemImage: "checkmark")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Color.accentColor, in: Capsule())
+                        .padding(12)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onOpen)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
     }
 }
 
-/// Shimmer-free skeleton shown while a category loads.
+/// Skeleton shown while a category loads.
 struct PlaceholderCard: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Rectangle().fill(Color.insetBackground).frame(height: 150)
+        VStack(alignment: .leading, spacing: 0) {
+            Rectangle().fill(Color.insetBackground).frame(height: 160)
             VStack(alignment: .leading, spacing: 6) {
-                RoundedRectangle(cornerRadius: 4).fill(Color.insetBackground).frame(height: 14)
-                RoundedRectangle(cornerRadius: 4).fill(Color.insetBackground).frame(width: 120, height: 10)
+                RoundedRectangle(cornerRadius: 4).fill(Color.insetBackground).frame(height: 12)
+                RoundedRectangle(cornerRadius: 4).fill(Color.insetBackground).frame(width: 100, height: 10)
             }
             .padding(12)
+            .frame(height: 64, alignment: .top)
         }
         .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .redacted(reason: .placeholder)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
@@ -139,6 +127,7 @@ struct DiscoverMapView: View {
                     .tag(item.id)
             }
         }
+        .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .onChange(of: selection) { _, id in
             if let id, let item = items.first(where: { $0.id == id }) {
                 onOpen(item)
@@ -148,7 +137,7 @@ struct DiscoverMapView: View {
     }
 }
 
-/// Dense row for places without photos (Apple Maps results): icon, name, area, distance.
+/// One place in a list: colored icon, name, area and distance, and a save button.
 struct CompactPlaceRow: View {
     let item: DiscoverItem
     let distance: CLLocationDistance?
@@ -158,16 +147,11 @@ struct CompactPlaceRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CategoryIcon(category: item.category, size: 46)
+            CategoryIcon(category: item.category, size: 36)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).font(.headline).lineLimit(1)
-                Text(item.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                if let distance {
-                    Text(Measurement(value: distance, unit: UnitLength.meters)
-                        .formatted(.measurement(width: .abbreviated, usage: .road)))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
+                Text(item.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                Text([distanceText(distance), item.subtitle].compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 4)
             Button(action: onToggleSave) {
@@ -179,10 +163,59 @@ struct CompactPlaceRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel(isSaved ? "Saved to plan" : "Save to plan")
         }
-        .padding(12)
-        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// A run of place rows in one card, separated by inset dividers.
+struct PlaceList: View {
+    let items: [DiscoverItem]
+    let distance: (DiscoverItem) -> CLLocationDistance?
+    let isSaved: (DiscoverItem) -> Bool
+    let onOpen: (DiscoverItem) -> Void
+    let onToggleSave: (DiscoverItem) -> Void
+
+    var body: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
+                CompactPlaceRow(item: item, distance: distance(item), isSaved: isSaved(item),
+                                onOpen: { onOpen(item) }, onToggleSave: { onToggleSave(item) })
+                if i < items.count - 1 { Divider().padding(.leading, 64) }
+            }
+        }
+        .padding(.vertical, 4)
+        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+    }
+}
+
+/// Round category button with a label underneath, like Apple Maps' search shortcuts.
+struct CategoryCircle: View {
+    let title: String
+    let symbol: String
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(isSelected ? .white : color)
+                    .frame(width: 52, height: 52)
+                    .background(isSelected ? AnyShapeStyle(color.gradient) : AnyShapeStyle(color.opacity(0.15)), in: Circle())
+                Text(title)
+                    .font(.caption.weight(isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+            }
+            .frame(width: 68)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

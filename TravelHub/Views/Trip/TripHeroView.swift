@@ -1,76 +1,33 @@
 import SwiftUI
+import SwiftData
 import MapKit
 
-/// Map header showing flight routes (or the destination) with the trip name and countdown.
+/// The destination photo fading into the page, with the trip name and countdown centered beneath it.
 struct TripHeroView: View {
     let trip: Trip
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Map(initialPosition: cameraPosition, interactionModes: [.pan, .zoom]) {
-                ForEach(trip.sortedFlights) { flight in
-                    MapPolyline(coordinates: [flight.departure.coordinate, flight.arrival.coordinate], contourStyle: .geodesic)
-                        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [1, 7]))
-                    Annotation(flight.departure.iata, coordinate: flight.departure.coordinate, anchor: .center) {
-                        airportDot
-                    }
-                    .annotationTitles(.visible)
-                    Annotation(flight.arrival.iata, coordinate: flight.arrival.coordinate, anchor: .center) {
-                        airportDot
-                    }
-                    .annotationTitles(.visible)
-                    if let position = FlightProgress.position(of: flight) {
-                        Annotation("", coordinate: position.coordinate) {
-                            Image(systemName: "airplane")
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .padding(7)
-                                .background(Color.accentColor, in: Circle())
-                                .rotationEffect(.degrees(position.bearing - 90))
-                        }
-                    }
-                }
-                if trip.sortedFlights.isEmpty {
-                    Marker(trip.destinationName, systemImage: "mappin", coordinate: trip.coordinate)
-                    ForEach(trip.sortedStays) { stay in
-                        Marker(stay.name, systemImage: "bed.double.fill", coordinate: stay.coordinate).tint(.indigo)
-                    }
-                }
-            }
-            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
-            .safeAreaPadding(.vertical, 24)
-            .frame(height: 260)
-            .mask(LinearGradient(stops: [.init(color: .black, location: 0.75), .init(color: .clear, location: 1)],
-                                 startPoint: .top, endPoint: .bottom))
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(countdown.uppercased())
-                    .font(.caption.weight(.bold))
-                    .tracking(0.8)
-                    .foregroundStyle(.tint)
+        VStack(spacing: 0) {
+            TripCover(trip: trip)
+                .frame(height: 330)
+                .frame(maxWidth: .infinity)
+                .mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.22),
+                                             .init(color: .black, location: 0.6), .init(color: .clear, location: 1)],
+                                     startPoint: .top, endPoint: .bottom))
+            VStack(spacing: 6) {
                 Text(trip.displayName)
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                Text(dateRangeText(trip.startDate, trip.endDate, tz: trip.timeZone) + " · \(trip.days.count) days")
-                    .font(.headline)
+                    .font(.largeTitle.bold())
+                    .multilineTextAlignment(.center)
+                Text("\(countdown) · \(trip.days.count)-day trip")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Text(dateRangeText(trip.startDate, trip.endDate, tz: trip.timeZone))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 20)
-            .readableWidth()
+            .padding(.horizontal, Metrics.gutter)
+            .padding(.top, -64)
         }
-    }
-
-    private var airportDot: some View {
-        Circle()
-            .fill(.white)
-            .frame(width: 12, height: 12)
-            .overlay(Circle().stroke(Color.accentColor, lineWidth: 3))
-    }
-
-    private var cameraPosition: MapCameraPosition {
-        if trip.sortedFlights.isEmpty {
-            return .region(MKCoordinateRegion(center: trip.coordinate, span: .init(latitudeDelta: 0.35, longitudeDelta: 0.35)))
-        }
-        return .automatic
     }
 
     private var countdown: String {
@@ -80,12 +37,73 @@ struct TripHeroView: View {
         let end = cal.startOfDay(for: trip.endDate)
         if today < start {
             let days = cal.dateComponents([.day], from: today, to: start).day ?? 0
-            return days == 1 ? "Tomorrow" : "In \(days) days"
+            return days == 1 ? "Leaves tomorrow" : "Leaves in \(days) days"
         } else if today <= end {
             let day = (cal.dateComponents([.day], from: start, to: today).day ?? 0) + 1
-            return "Day \(day) of \(trip.days.count)"
+            return "Day \(day)"
         }
-        return "Trip complete"
+        return "Completed"
+    }
+}
+
+/// Menu listing every trip, used wherever the app lets you switch trips.
+struct TripSwitcherMenu<Label: View>: View {
+    @Environment(AppModel.self) private var model
+    @Query(sort: \Trip.startDate) private var trips: [Trip]
+    @ViewBuilder var label: Label
+
+    var body: some View {
+        Menu {
+            ForEach(trips) { trip in
+                Button {
+                    model.selectedTripID = trip.id
+                } label: {
+                    SwiftUI.Label("\(trip.displayName) · \(dateRangeText(trip.startDate, trip.endDate, tz: trip.timeZone))",
+                                  systemImage: trip.id == model.currentTrip(from: trips)?.id ? "checkmark" : "suitcase")
+                }
+            }
+            Divider()
+            Button("New Trip…", systemImage: "plus") { model.isPresentingNewTrip = true }
+        } label: {
+            label
+        }
+        .accessibilityLabel("Switch trip")
+    }
+}
+
+/// The flight routes on a map, drawn as great-circle arcs.
+struct RouteMapCard: View {
+    let trip: Trip
+
+    var body: some View {
+        Map(initialPosition: .automatic, interactionModes: [.pan, .zoom]) {
+            ForEach(trip.sortedFlights) { flight in
+                MapPolyline(coordinates: [flight.departure.coordinate, flight.arrival.coordinate], contourStyle: .geodesic)
+                    .stroke(Color.flight, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [1, 6]))
+                Annotation(flight.departure.iata, coordinate: flight.departure.coordinate, anchor: .center) { dot }
+                    .annotationTitles(.visible)
+                Annotation(flight.arrival.iata, coordinate: flight.arrival.coordinate, anchor: .center) { dot }
+                    .annotationTitles(.visible)
+                if let position = FlightProgress.position(of: flight) {
+                    Annotation("", coordinate: position.coordinate) {
+                        Image(systemName: "airplane")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(6)
+                            .background(Color.flight, in: Circle())
+                            .rotationEffect(.degrees(position.bearing - 90))
+                    }
+                }
+            }
+        }
+        .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
+        .safeAreaPadding(.vertical, 24)
+        .frame(height: 180)
+        .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+    }
+
+    private var dot: some View {
+        Circle().fill(.white).frame(width: 10, height: 10).overlay(Circle().stroke(Color.flight, lineWidth: 3))
     }
 }
 

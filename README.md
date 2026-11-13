@@ -15,6 +15,18 @@ All plan times are shown in the **destination's** time zone. Flight times are sh
 
 On iPhone the tabs sit in a bottom tab bar. On iPad and Mac they become a sidebar, and Plan shows the timeline and map side by side.
 
+## Design
+
+The look follows the patterns shared by the highest-rated trip apps (TripIt, Tripsy, Wanderlog, Reis): native iOS surfaces, the system font, and one warm orange accent.
+
+- **Native surfaces:** grouped gray background (black in dark mode) with rounded white cards, inset dividers and standard list styles.
+- **Trip page:** the destination's photo fades into the page, with the trip name and "Leaves in 9 days · 8-day trip" centered beneath and round quick actions (Flight, Stay, Activity, Discover).
+- **Compact itinerary:** each plan is one row (colored circle icon, title and place, time on the right), with travel time as a quiet line between stops. The day map opens from the toolbar on iPhone and sits beside the list on iPad and Mac.
+- **Discover:** Apple Maps-style category circles, photo cards for sights and events, and grouped lists for restaurants, cafés and other places.
+- **Welcome:** a live 3D globe from Apple Maps satellite imagery.
+
+Colors live in `Views/Common/Theme.swift`; shared pieces (cards, circle icons, quick actions, section headers) are in `Views/Common/Components.swift`.
+
 ## Where the data comes from
 
 | Data | Source | Key? | Cost |
@@ -24,6 +36,7 @@ On iPhone the tabs sit in a bottom tab bar. On iPad and Mac they become a sideba
 | Restaurants, cafés, bars, museums, parks, shops, search | Apple MapKit (`MKLocalSearch`) | No | Free |
 | Landmarks with photos and descriptions | Wikipedia geosearch, ranked by article length | No | Free |
 | Travel time between stops, Look Around, place cards | Apple MapKit | No | Free |
+| Destination cover photos | Wikipedia lead image | No | Free |
 | Weather | [Open-Meteo](https://open-meteo.com) | No | Free |
 | Exchange rates | [open.er-api.com](https://www.exchangerate-api.com/docs/free) | No | Free |
 

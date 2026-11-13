@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// The forecast as a row of days inside one card.
 struct WeatherStripView: View {
     let forecast: [DailyForecast]
     let loaded: Bool
@@ -10,83 +11,75 @@ struct WeatherStripView: View {
             HStack(spacing: 12) {
                 Image(systemName: loaded ? "calendar.badge.clock" : "cloud.sun")
                     .font(.title2).symbolRenderingMode(.multicolor)
-                Text(loaded ? "The forecast appears about two weeks before your trip."
-                            : "Loading forecast…")
+                Text(loaded ? "The forecast appears about two weeks before you leave."
+                            : "Loading the forecast…")
                     .font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
             }
             .card()
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
+                HStack(spacing: 4) {
                     ForEach(forecast) { day in
                         VStack(spacing: 8) {
                             Text(day.date.weekday(in: tz)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                            Text(day.date.dayNumber(in: tz)).font(.caption2).foregroundStyle(.tertiary)
                             Image(systemName: day.symbol)
                                 .symbolRenderingMode(.multicolor)
-                                .font(.title2)
-                                .frame(height: 30)
-                            Text("\(Int(day.high.rounded()))°").font(.headline)
-                            Text("\(Int(day.low.rounded()))°").font(.subheadline).foregroundStyle(.secondary)
-                            if let p = day.precipitationChance, p >= 20 {
-                                Label("\(p)%", systemImage: "drop.fill")
-                                    .labelStyle(.titleAndIcon)
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(.blue)
-                            }
+                                .font(.title3)
+                                .frame(height: 26)
+                            Text("\(Int(day.high.rounded()))°").font(.subheadline.weight(.semibold))
+                            Text("\(Int(day.low.rounded()))°").font(.caption).foregroundStyle(.secondary)
                         }
-                        .frame(width: 66)
-                        .padding(.vertical, 14)
-                        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .frame(width: 52)
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel("\(day.date.weekday(in: tz, .wide)): \(day.label), high \(Int(day.high)), low \(Int(day.low))")
                     }
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 14)
             }
+            .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         }
     }
 }
 
+/// Local time, currency and country as a short list in one card.
 struct LocalInfoView: View {
     let trip: Trip
     let exchangeRate: Double?
 
-    private let columns = [GridItem(.adaptive(minimum: 220), spacing: 12)]
-
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 12) {
+        VStack(spacing: 0) {
             TimelineView(.periodic(from: .now, by: 30)) { context in
-                tile(symbol: "clock.fill", tint: .blue, title: "Local time",
-                     value: context.date.time(in: trip.timeZone),
-                     detail: timeDifference(at: context.date))
+                row(symbol: "clock.fill", color: .blue, title: "Local time",
+                    value: context.date.time(in: trip.timeZone), detail: timeDifference(at: context.date))
             }
             if let currency = CurrencyService.currency(forCountry: trip.countryCode) {
-                tile(symbol: "banknote.fill", tint: .green, title: "Currency", value: currency,
-                     detail: currencyDetail(dest: currency))
+                Divider().padding(.leading, 52)
+                row(symbol: "banknote.fill", color: .green, title: "Currency", value: currency, detail: currencyDetail(dest: currency))
             }
             if let code = trip.countryCode, let country = Locale.current.localizedString(forRegionCode: code) {
-                tile(symbol: "globe", tint: .orange, title: "Country", value: country,
-                     detail: trip.timeZone.localizedName(for: .generic, locale: .current) ?? trip.timeZone.identifier)
+                Divider().padding(.leading, 52)
+                row(symbol: "globe", color: .orange, title: "Country", value: country,
+                    detail: trip.timeZone.localizedName(for: .generic, locale: .current) ?? trip.timeZone.identifier)
             }
         }
+        .padding(.vertical, 4)
+        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
     }
 
-    private func tile(symbol: String, tint: Color, title: String, value: String, detail: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol)
-                .foregroundStyle(tint)
-                .font(.headline)
-                .frame(width: 34, height: 34)
-                .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-                Text(value).font(.title3.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
-                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+    private func row(symbol: String, color: Color, title: String, value: String, detail: String) -> some View {
+        HStack(spacing: 12) {
+            CircleIcon(symbol: symbol, color: color, size: 30)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.subheadline)
+                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
+            Text(value).font(.subheadline.weight(.semibold)).lineLimit(1)
         }
-        .card(padding: 14)
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.vertical, 10)
     }
 
     private func timeDifference(at date: Date) -> String {
@@ -94,7 +87,7 @@ struct LocalInfoView: View {
         if diff == 0 { return "Same time as you" }
         let hours = Double(diff) / 3600
         let text = hours == hours.rounded() ? String(Int(abs(hours))) : String(format: "%.1f", abs(hours))
-        return "\(text) h \(diff > 0 ? "ahead of" : "behind") you"
+        return "\(text)h \(diff > 0 ? "ahead of" : "behind") you"
     }
 
     private func currencyDetail(dest: String) -> String {

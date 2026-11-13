@@ -240,3 +240,35 @@ struct TicketmasterProvider {
         let _embedded: Embedded?
     }
 }
+
+// MARK: - Destination cover photos (Wikipedia lead image)
+
+/// Finds a large lead photo for a city ("Tokyo" → Shinjuku skyline) and remembers it on the device.
+@MainActor
+enum CoverPhotos {
+    private static let defaultsKey = "coverPhotos.v1"
+    private static var cache: [String: String] = UserDefaults.standard.dictionary(forKey: defaultsKey) as? [String: String] ?? [:]
+
+    static func cached(for name: String) -> URL? {
+        cache[name.lowercased()].flatMap { $0.isEmpty ? nil : URL(string: $0) }
+    }
+
+    static func url(for name: String) async -> URL? {
+        let key = name.lowercased()
+        if let hit = cache[key] { return hit.isEmpty ? nil : URL(string: hit) }
+        let api = URL(string: "https://en.wikipedia.org/w/api.php")!.appending(query: [
+            "action": "query", "format": "json", "formatversion": "2", "redirects": "1",
+            "titles": name, "prop": "pageimages", "piprop": "thumbnail", "pithumbsize": "1400",
+        ])
+        struct R: Decodable {
+            struct Q: Decodable { let pages: [P]? }
+            struct P: Decodable { struct T: Decodable { let source: String }; let thumbnail: T? }
+            let query: Q?
+        }
+        guard let r: R = try? await HTTP.get(api, service: "Wikipedia") else { return nil }
+        let source = r.query?.pages?.first?.thumbnail?.source ?? ""
+        cache[key] = source
+        UserDefaults.standard.set(cache, forKey: defaultsKey)
+        return source.isEmpty ? nil : URL(string: source)
+    }
+}

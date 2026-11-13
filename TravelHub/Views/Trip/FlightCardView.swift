@@ -1,115 +1,62 @@
 import SwiftUI
 
-/// Boarding-pass style flight summary: big airport codes, local times, gates and status.
+/// Compact flight card: airport codes with local times either side of a route line, then gate details.
 struct FlightCardView: View {
     let flight: FlightSegment
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
-            route
-            times
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                CircleIcon(symbol: "airplane", color: .flight, size: 26)
+                Text(flight.flightNumber).font(.subheadline.weight(.semibold))
+                Text(flight.airlineName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: 4)
+                if flight.isSample { StatusPill(text: "Sample", color: .orange) }
+                StatusPill(text: status.text, color: status.color)
+            }
+
+            HStack(alignment: .center, spacing: 10) {
+                endpoint(flight.departure, alignment: .leading)
+                VStack(spacing: 4) {
+                    RouteLine(progress: FlightProgress.fraction(of: flight)).frame(height: 14)
+                    Text(flight.duration.hoursMinutes).font(.caption).foregroundStyle(.secondary)
+                }
+                endpoint(flight.arrival, alignment: .trailing, dayOffset: dayOffset)
+            }
+
             Divider()
-            details
-        }
-        .card(padding: 18)
-    }
 
-    private var header: some View {
-        HStack(spacing: 10) {
-            Text(flight.airlineCode.isEmpty ? "✈︎" : flight.airlineCode)
-                .font(.caption.weight(.heavy))
-                .foregroundStyle(.white)
-                .frame(width: 32, height: 32)
-                .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(flight.flightNumber).font(.headline)
-                Text(flight.airlineName).font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 0) {
+                detail("Terminal", flight.departure.terminal)
+                detail("Gate", flight.departure.gate)
+                detail("Arr. Terminal", flight.arrival.terminal)
+                detail("Bags", flight.arrival.baggageBelt)
             }
-            Spacer()
-            if flight.isSample { StatusPill(text: "Sample", color: .orange) }
-            StatusPill(text: status.text, color: status.color)
         }
+        .card()
     }
 
-    private var route: some View {
-        HStack(alignment: .center, spacing: 10) {
-            airport(flight.departure, alignment: .leading)
-            VStack(spacing: 6) {
-                RouteLine(progress: FlightProgress.fraction(of: flight))
-                    .frame(height: 16)
-                Text(flight.duration.hoursMinutes)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-            airport(flight.arrival, alignment: .trailing)
-        }
-    }
-
-    private func airport(_ e: FlightEndpoint, alignment: HorizontalAlignment) -> some View {
+    private func endpoint(_ e: FlightEndpoint, alignment: HorizontalAlignment, dayOffset: Int = 0) -> some View {
         VStack(alignment: alignment, spacing: 2) {
-            Text(e.iata)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .monospaced()
             Text(e.city).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(e.iata).font(.system(size: 30, weight: .bold, design: .rounded))
+            HStack(spacing: 3) {
+                Text(e.best.time(in: e.timeZone))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(e.delayMinutes >= 15 ? Color.orange : Color.primary)
+                if dayOffset != 0 {
+                    Text(dayOffset > 0 ? "+\(dayOffset)" : "\(dayOffset)").font(.caption2.weight(.bold)).foregroundStyle(.orange)
+                }
+            }
+            Text(e.best.weekdayDayMonth(in: e.timeZone)).font(.caption).foregroundStyle(.secondary)
         }
         .fixedSize()
     }
 
-    private var times: some View {
-        HStack(alignment: .top) {
-            timeBlock(flight.departure, label: "Departs", alignment: .leading)
-            Spacer()
-            timeBlock(flight.arrival, label: "Arrives", alignment: .trailing, dayOffset: dayOffset)
-        }
-    }
-
-    private func timeBlock(_ e: FlightEndpoint, label: String, alignment: HorizontalAlignment, dayOffset: Int = 0) -> some View {
-        VStack(alignment: alignment, spacing: 2) {
-            Text(label).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(e.best.time(in: e.timeZone))
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(e.delayMinutes >= 15 ? .orange : .primary)
-                if dayOffset != 0 {
-                    Text(dayOffset > 0 ? "+\(dayOffset)" : "\(dayOffset)")
-                        .font(.caption.weight(.bold)).foregroundStyle(.orange)
-                }
-            }
-            if e.delayMinutes >= 15 {
-                Text(e.scheduled.time(in: e.timeZone)).font(.caption).strikethrough().foregroundStyle(.secondary)
-            } else {
-                Text(e.best.weekdayDayMonth(in: e.timeZone)).font(.caption).foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var details: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 0) {
-                detail("Terminal", flight.departure.terminal)
-                detail("Gate", flight.departure.gate)
-                detail("Arr. Term.", flight.arrival.terminal)
-                detail("Bags", flight.arrival.baggageBelt)
-            }
-            if let aircraft = flight.aircraftModel {
-                Label(aircraft + distanceText, systemImage: "airplane.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var distanceText: String {
-        guard let km = flight.distanceKm else { return "" }
-        let m = Measurement(value: km, unit: UnitLength.kilometers)
-        return " · " + m.formatted(.measurement(width: .abbreviated, usage: .road, numberFormatStyle: .number.precision(.fractionLength(0))))
-    }
-
     private func detail(_ label: String, _ value: String?) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase).lineLimit(1)
-            Text(value?.isEmpty == false ? value! : "—").font(.headline.monospaced())
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(value?.isEmpty == false ? value! : "–").font(.subheadline.weight(.semibold))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -137,29 +84,27 @@ struct FlightCardView: View {
     }
 }
 
-/// Dotted route with a plane that sits at the flight's current progress.
+/// Route line with a plane at the flight's current progress (or the middle before departure).
 private struct RouteLine: View {
     let progress: Double?
 
     var body: some View {
         GeometryReader { geo in
-            let w = geo.size.width
+            let w = geo.size.width, mid = geo.size.height / 2
             ZStack(alignment: .leading) {
-                Path { p in
-                    p.move(to: CGPoint(x: 0, y: geo.size.height / 2))
-                    p.addLine(to: CGPoint(x: w, y: geo.size.height / 2))
-                }
-                .stroke(.secondary.opacity(0.5), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 5]))
+                Capsule().fill(Color.secondary.opacity(0.25)).frame(height: 2).offset(y: 0)
                 if let progress {
-                    Capsule().fill(Color.accentColor).frame(width: w * progress, height: 3)
+                    Capsule().fill(Color.flight).frame(width: w * progress, height: 2)
                 }
                 Image(systemName: "airplane")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.tint)
-                    .padding(.horizontal, 4)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.flight)
+                    .padding(.horizontal, 3)
                     .background(Color.cardBackground)
-                    .offset(x: (w - 24) * (progress ?? 0.5))
+                    .offset(x: (w - 20) * (progress ?? 0.5))
             }
+            .frame(height: geo.size.height)
+            .position(x: w / 2, y: mid)
         }
     }
 }

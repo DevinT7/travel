@@ -33,6 +33,7 @@ struct PlanView: View {
     @State private var selectedDay: Date?
     @State private var editing: PlanItem?
     @State private var addingCustom = false
+    @State private var showingMap = false
     @State private var focusedEntryID: String?
 
     private var isWide: Bool {
@@ -47,19 +48,20 @@ struct PlanView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            DayStrip(trip: trip, selectedDay: $selectedDay, ideaCount: ideas.count)
-                .padding(.vertical, 10)
-            Divider()
+            DayPicker(trip: trip, selectedDay: $selectedDay, ideaCount: ideas.count)
+                .padding(.vertical, 8)
             if let day = selectedDay {
                 let entries = entries(for: day)
                 if isWide {
                     HStack(spacing: 0) {
-                        timeline(entries, day: day).frame(minWidth: 380, idealWidth: 460, maxWidth: 520)
-                        Divider()
+                        timeline(entries, day: day).frame(minWidth: 360, idealWidth: 440, maxWidth: 500)
                         DayMapView(entries: entries, stays: trip.sortedStays, fallback: trip.coordinate, focusedID: $focusedEntryID)
+                            .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+                            .padding([.trailing, .bottom], Metrics.gutter)
+                            .padding(.top, 4)
                     }
                 } else {
-                    timeline(entries, day: day, mapHeader: true)
+                    timeline(entries, day: day)
                 }
             } else {
                 IdeasListView(trip: trip, ideas: ideas, onEdit: { editing = $0 })
@@ -69,6 +71,24 @@ struct PlanView: View {
         .navigationTitle("Plan")
         .inlineTitle()
         .toolbar {
+            if !isWide, let day = selectedDay {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Map", systemImage: "map") { showingMap = true }
+                        .sheet(isPresented: $showingMap) {
+                            NavigationStack {
+                                DayMapView(entries: entries(for: day), stays: trip.sortedStays, fallback: trip.coordinate,
+                                           focusedID: $focusedEntryID)
+                                    .ignoresSafeArea(edges: .bottom)
+                                    .navigationTitle(day.formatted(Date.FormatStyle(timeZone: trip.timeZone).weekday(.wide).month().day()))
+                                    .inlineTitle()
+                                    .toolbar {
+                                        ToolbarItem(placement: .confirmationAction) { Button("Done") { showingMap = false } }
+                                    }
+                            }
+                            .presentationDetents([.medium, .large])
+                        }
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button("Add to Plan", systemImage: "plus") { addingCustom = true }
             }
@@ -86,79 +106,77 @@ struct PlanView: View {
 
     // MARK: Timeline
 
-    @ViewBuilder
-    private func timeline(_ entries: [TimelineEntry], day: Date, mapHeader: Bool = false) -> some View {
+    private func timeline(_ entries: [TimelineEntry], day: Date) -> some View {
         List {
-            if mapHeader {
-                DayMapView(entries: entries, stays: trip.sortedStays, fallback: trip.coordinate, focusedID: $focusedEntryID)
-                    .frame(height: 220)
-                    .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-            }
-
-            Text(day.formatted(Date.FormatStyle(timeZone: trip.timeZone).weekday(.wide).month(.wide).day()))
-                .font(.title2.bold())
-                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 4, trailing: 16))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-
-            if entries.isEmpty {
-                EmptyStateView(symbol: "sun.max", title: "Nothing planned yet",
-                               message: "Find things to do in Discover, or add your own plans.",
-                               actionTitle: "Discover \(trip.destinationName)") { app.selectedTab = .discover }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-            }
-
-            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                TimelineRow(entry: entry, tz: entry.timeZone ?? trip.timeZone, isFirst: index == 0, isLast: index == entries.count - 1,
-                            isFocused: focusedEntryID == entry.id)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        focusedEntryID = entry.id
-                        if let item = entry.planItem { editing = item }
+            Section {
+                if entries.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Nothing planned yet").font(.headline)
+                        Text("Find things to do in Discover, or add your own plans.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        Button("Discover \(trip.destinationName)") { app.selectedTab = .discover }
+                            .font(.subheadline.weight(.semibold))
                     }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .swipeActions(edge: .trailing) {
-                        if let item = entry.planItem {
-                            Button("Delete", systemImage: "trash", role: .destructive) {
-                                context.delete(item); try? context.save()
-                            }
-                            Button("Later", systemImage: "tray.and.arrow.down") {
-                                item.isScheduled = false; try? context.save()
-                            }
-                            .tint(.orange)
-                        }
-                    }
-                    .contextMenu {
-                        if let item = entry.planItem {
-                            Button("Edit", systemImage: "pencil") { editing = item }
-                            Button("Move to Ideas", systemImage: "tray.and.arrow.down") { item.isScheduled = false; try? context.save() }
-                            Button("Delete", systemImage: "trash", role: .destructive) { context.delete(item); try? context.save() }
-                        }
-                    }
-
-                if index < entries.count - 1, let a = entry.coordinate, let b = entries[index + 1].coordinate {
-                    TravelConnector(from: a, to: b, gap: entries[index + 1].start.timeIntervalSince(entry.end ?? entry.start))
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+                    .padding(.vertical, 6)
                 }
+                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    if index > 0, let a = entries[index - 1].coordinate, let b = entry.coordinate {
+                        TravelRow(from: a, to: b, gap: entry.start.timeIntervalSince(entries[index - 1].end ?? entries[index - 1].start))
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 16))
+                    }
+                    TimelineRow(entry: entry, tz: entry.timeZone ?? trip.timeZone)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            focusedEntryID = entry.id
+                            if let item = entry.planItem { editing = item }
+                        }
+                        .listRowSeparator(.hidden)
+                        .swipeActions(edge: .trailing) {
+                            if let item = entry.planItem {
+                                Button("Delete", systemImage: "trash", role: .destructive) {
+                                    context.delete(item); try? context.save()
+                                }
+                                Button("Later", systemImage: "tray.and.arrow.down") {
+                                    item.isScheduled = false; try? context.save()
+                                }
+                                .tint(.orange)
+                            }
+                        }
+                        .contextMenu {
+                            if let item = entry.planItem {
+                                Button("Edit", systemImage: "pencil") { editing = item }
+                                Button("Move to Ideas", systemImage: "tray.and.arrow.down") { item.isScheduled = false; try? context.save() }
+                                Button("Delete", systemImage: "trash", role: .destructive) { context.delete(item); try? context.save() }
+                            }
+                        }
+                }
+            } header: {
+                Text(day.formatted(Date.FormatStyle(timeZone: trip.timeZone).weekday(.wide).month(.wide).day()))
+            } footer: {
+                if !entries.isEmpty { Text(summary(entries)) }
             }
+            .headerProminence(.increased)
         }
-        .listStyle(.plain)
+        #if os(iOS)
+        .listStyle(.insetGrouped)
+        #endif
+        .environment(\.defaultMinListRowHeight, 20)
         .scrollContentBackground(.hidden)
+    }
+
+    private func summary(_ entries: [TimelineEntry]) -> String {
+        let plans = entries.compactMap(\.planItem)
+        guard !plans.isEmpty else { return "" }
+        let minutes = plans.reduce(0) { $0 + $1.durationMinutes }
+        return "\(plans.count) plan\(plans.count == 1 ? "" : "s") · \(PlanItemEditor.durationLabel(minutes)) of activities"
     }
 
     private func entries(for day: Date) -> [TimelineEntry] {
         let cal = trip.calendar
         var result: [TimelineEntry] = []
         for p in trip.planItems ?? [] where p.isScheduled && cal.isDate(p.start, inSameDayAs: day) {
-            let sub = [p.address, p.notes].first { !$0.isEmpty } ?? p.category.title
+            let sub = [p.notes, p.address].first { !$0.isEmpty } ?? ""
             result.append(.init(id: p.id.uuidString, kind: .plan(p), start: p.start, end: p.end, title: p.title,
                                 subtitle: sub, coordinate: p.coordinate, symbol: p.category.symbol, color: p.category.color))
         }
@@ -167,14 +185,14 @@ struct PlanView: View {
                 result.append(.init(id: "dep-\(f.id)", kind: .flight(f, departing: true), start: f.departure.best, end: nil,
                                     title: "\(f.flightNumber) to \(f.arrival.city)",
                                     subtitle: "Departs \(f.departure.iata)" + (f.departure.gate.map { " · Gate \($0)" } ?? ""),
-                                    coordinate: f.departure.coordinate, symbol: "airplane.departure", color: .blue,
+                                    coordinate: f.departure.coordinate, symbol: "airplane.departure", color: .flight,
                                     timeZone: f.departure.timeZone))
             }
             if Self.isSameLocalDay(f.arrival.best, in: f.arrival.timeZone, as: day, tripCalendar: cal) {
                 result.append(.init(id: "arr-\(f.id)", kind: .flight(f, departing: false), start: f.arrival.best, end: nil,
                                     title: "Land in \(f.arrival.city)",
                                     subtitle: "\(f.flightNumber) · \(f.arrival.iata)" + (f.arrival.baggageBelt.map { " · Belt \($0)" } ?? ""),
-                                    coordinate: f.arrival.coordinate, symbol: "airplane.arrival", color: .blue,
+                                    coordinate: f.arrival.coordinate, symbol: "airplane.arrival", color: .flight,
                                     timeZone: f.arrival.timeZone))
             }
         }
@@ -182,12 +200,12 @@ struct PlanView: View {
             if cal.isDate(s.checkIn, inSameDayAs: day) {
                 result.append(.init(id: "in-\(s.id)", kind: .stay(s, checkIn: true), start: s.checkIn, end: nil,
                                     title: "Check in · \(s.name)", subtitle: s.address, coordinate: s.coordinate,
-                                    symbol: "key.fill", color: .indigo))
+                                    symbol: "key.fill", color: .stay))
             }
             if cal.isDate(s.checkOut, inSameDayAs: day) {
                 result.append(.init(id: "out-\(s.id)", kind: .stay(s, checkIn: false), start: s.checkOut, end: nil,
                                     title: "Check out · \(s.name)", subtitle: s.address, coordinate: s.coordinate,
-                                    symbol: "door.left.hand.open", color: .indigo))
+                                    symbol: "door.left.hand.open", color: .stay))
             }
         }
         return result.sorted { $0.start < $1.start }
@@ -203,9 +221,10 @@ struct PlanView: View {
     }
 }
 
-// MARK: - Day selector
 
-private struct DayStrip: View {
+// MARK: - Day picker
+
+private struct DayPicker: View {
     let trip: Trip
     @Binding var selectedDay: Date?
     let ideaCount: Int
@@ -216,148 +235,96 @@ private struct DayStrip: View {
                 HStack(spacing: 8) {
                     ForEach(Array(trip.days.enumerated()), id: \.element) { index, day in
                         let selected = selectedDay.map { trip.calendar.isDate($0, inSameDayAs: day) } ?? false
-                        let count = (trip.planItems ?? []).filter { $0.isScheduled && trip.calendar.isDate($0.start, inSameDayAs: day) }.count
-                        Button {
+                        chip(selected: selected) {
                             withAnimation(.snappy) { selectedDay = day }
                         } label: {
-                            VStack(spacing: 3) {
-                                Text("Day \(index + 1)").font(.caption2.weight(.semibold)).opacity(0.8)
-                                Text(day.weekday(in: trip.timeZone)).font(.caption.weight(.bold))
-                                Text(day.dayNumber(in: trip.timeZone)).font(.title3.weight(.bold))
-                                Circle()
-                                    .fill(count > 0 ? (selected ? Color.white : Color.accentColor) : .clear)
-                                    .frame(width: 5, height: 5)
-                            }
-                            .frame(width: 58, height: 82)
-                            .foregroundStyle(selected ? Color.white : Color.primary)
-                            .background(selected ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.cardBackground),
-                                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            Text("\(day.weekday(in: trip.timeZone)) \(day.dayNumber(in: trip.timeZone))")
                         }
-                        .buttonStyle(.plain)
                         .id(day)
+                        .accessibilityLabel("Day \(index + 1), \(day.weekdayDayMonth(in: trip.timeZone))")
                     }
-                    Button {
+                    chip(selected: selectedDay == nil) {
                         withAnimation(.snappy) { selectedDay = nil }
                     } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: "lightbulb.fill").font(.title3)
-                            Text("Ideas").font(.caption.weight(.bold))
-                            Text("\(ideaCount)").font(.caption2.weight(.semibold)).opacity(0.8)
-                        }
-                        .frame(width: 64, height: 82)
-                        .foregroundStyle(selectedDay == nil ? Color.white : Color.orange)
-                        .background(selectedDay == nil ? AnyShapeStyle(Color.orange.gradient) : AnyShapeStyle(Color.orange.opacity(0.12)),
-                                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        Label("Ideas \(ideaCount)", systemImage: "lightbulb")
                     }
-                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, Metrics.gutter)
             }
             .onAppear { if let d = selectedDay { proxy.scrollTo(d, anchor: .center) } }
         }
     }
+
+    private func chip<L: View>(selected: Bool, action: @escaping () -> Void, @ViewBuilder label: () -> L) -> some View {
+        Button(action: action) {
+            label()
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .foregroundStyle(selected ? Color.white : Color.primary)
+                .background(selected ? Color.accentColor : Color.cardBackground, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
 }
 
 // MARK: - Timeline pieces
 
+/// One compact itinerary row: colored icon, title and place, time on the right.
 private struct TimelineRow: View {
     let entry: TimelineEntry
     let tz: TimeZone
-    let isFirst: Bool
-    let isLast: Bool
-    let isFocused: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(entry.start.time(in: tz)).font(.subheadline.weight(.semibold)).monospacedDigit()
-                if case .flight(let f, let departing) = entry.kind {
-                    Text(departing ? f.departure.iata : f.arrival.iata)
-                        .font(.caption2.weight(.bold)).foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            CircleIcon(symbol: entry.symbol, color: entry.color, size: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(entry.title).font(.body.weight(.semibold)).lineLimit(1)
+                    if let item = entry.planItem, item.isBooked {
+                        Image(systemName: "checkmark.seal.fill").font(.caption).foregroundStyle(.green)
+                            .accessibilityLabel("Booked")
+                    }
                 }
+                if !entry.subtitle.isEmpty {
+                    Text(entry.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(entry.start.time(in: tz)).font(.subheadline.weight(.medium)).monospacedDigit()
                 if let end = entry.end {
                     Text(end.time(in: tz)).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                } else if case .flight(let f, let departing) = entry.kind {
+                    Text(departing ? f.departure.iata : f.arrival.iata).font(.caption).foregroundStyle(.secondary)
                 }
             }
-            .frame(width: 70, alignment: .trailing)
-            .padding(.top, 14)
-
-            // Rail with the node icon.
-            ZStack(alignment: .top) {
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.25))
-                    .frame(width: 2)
-                    .padding(.top, isFirst ? 22 : 0)
-                    .padding(.bottom, isLast ? 0 : 0)
-                    .frame(maxHeight: isLast ? 22 : .infinity, alignment: .top)
-                Image(systemName: entry.symbol)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 30, height: 30)
-                    .background(entry.color.gradient, in: Circle())
-                    .overlay(Circle().stroke(Color.appBackground, lineWidth: 3))
-                    .padding(.top, 8)
-            }
-            .frame(width: 32)
-            .frame(maxHeight: .infinity, alignment: .top)
-
-            content
-                .padding(.vertical, 6)
         }
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(entry.title).font(.headline).lineLimit(2)
-                Spacer(minLength: 4)
-                if let item = entry.planItem, item.isBooked {
-                    Image(systemName: "checkmark.seal.fill").foregroundStyle(.green).accessibilityLabel("Booked")
-                }
-            }
-            Text(entry.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
-            if let item = entry.planItem {
-                Text(PlanItemEditor.durationLabel(item.durationMinutes))
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(entry.color.opacity(0.14), in: Capsule())
-                    .foregroundStyle(entry.color)
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .strokeBorder(Color.accentColor, lineWidth: isFocused ? 2 : 0))
+        .padding(.vertical, 6)
     }
 }
 
-/// Dashed rail segment between two stops with the estimated travel time.
-private struct TravelConnector: View {
+/// Travel time between two stops, shown as a quiet line under the previous row.
+private struct TravelRow: View {
     let from: CLLocationCoordinate2D
     let to: CLLocationCoordinate2D
     let gap: TimeInterval
     @State private var estimate: TravelEstimate?
 
     var body: some View {
-        HStack(spacing: 12) {
-            Spacer().frame(width: 70)
-            Rectangle()
-                .fill(Color.secondary.opacity(0.25))
-                .frame(width: 2, height: 34)
-                .frame(width: 32)
+        HStack(spacing: 6) {
+            Rectangle().fill(Color.secondary.opacity(0.3)).frame(width: 2, height: 18).padding(.horizontal, 15)
             if let estimate {
                 let tight = gap > 0 && TimeInterval(estimate.minutes * 60) > gap
-                Label(estimate.text, systemImage: estimate.symbol)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(tight ? .orange : .secondary)
-                if tight {
-                    Text("Tight").font(.caption2.weight(.bold)).foregroundStyle(.orange)
-                }
+                Image(systemName: estimate.symbol)
+                Text(estimate.text + (tight ? " · Tight" : ""))
+                    .foregroundStyle(tight ? Color.orange : .secondary)
             }
             Spacer()
         }
+        .font(.caption)
+        .foregroundStyle(.secondary)
         .task(id: "\(from.latitude),\(from.longitude)>\(to.latitude),\(to.longitude)") {
             estimate = await DirectionsService.shared.estimate(from: from, to: to)
         }
@@ -395,18 +362,18 @@ struct DayMapView: View {
         Map(position: $position, selection: $focusedID) {
             if stops.count > 1 {
                 MapPolyline(coordinates: stops.compactMap { $0.1.coordinate })
-                    .stroke(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [6, 6]))
+                    .stroke(Color.orange.opacity(0.8), style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [6, 6]))
             }
             ForEach(stays) { stay in
-                Marker(stay.name, systemImage: "bed.double.fill", coordinate: stay.coordinate).tint(.indigo)
+                Marker(stay.name, systemImage: "bed.double.fill", coordinate: stay.coordinate).tint(Color.stay)
             }
             ForEach(stops, id: \.1.id) { number, entry in
                 Annotation(entry.title, coordinate: entry.coordinate!) {
                     Text("\(number)")
-                        .font(.caption.weight(.heavy))
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(.white)
                         .frame(width: 26, height: 26)
-                        .background(entry.color, in: Circle())
+                        .background(Color.accentColor, in: Circle())
                         .overlay(Circle().stroke(.white, lineWidth: 2))
                         .scaleEffect(focusedID == entry.id ? 1.3 : 1)
                         .shadow(radius: 2, y: 1)
@@ -447,21 +414,21 @@ private struct IdeasListView: View {
                         .listRowBackground(Color.clear)
                 }
                 ForEach(ideas) { item in
-                    HStack(spacing: 14) {
-                        PlaceImage(url: item.imageURL, category: item.category)
-                            .frame(width: 56, height: 56)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(item.title).font(.headline)
+                    HStack(spacing: 12) {
+                        PlaceImage(url: item.imageURL, category: item.category, symbolSize: 18)
+                            .frame(width: 48, height: 48)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.title).font(.body.weight(.semibold)).lineLimit(1)
                             Text(item.notes.isEmpty ? item.category.title : item.notes)
                                 .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                         }
                         Spacer()
                         Button("Schedule") { onEdit(item) }
                             .buttonStyle(.bordered)
+                            .buttonBorderShape(.capsule)
                             .controlSize(.small)
                     }
-                    .padding(.vertical, 4)
                     .contentShape(Rectangle())
                     .onTapGesture { onEdit(item) }
                     .swipeActions {
@@ -470,8 +437,14 @@ private struct IdeasListView: View {
                 }
             } header: {
                 if !ideas.isEmpty { Text("Saved for later") }
+            } footer: {
+                if !ideas.isEmpty { Text("Ideas don't have a time yet. Schedule one to add it to a day.") }
             }
+            .headerProminence(.increased)
         }
+        #if os(iOS)
+        .listStyle(.insetGrouped)
+        #endif
         .scrollContentBackground(.hidden)
     }
 }

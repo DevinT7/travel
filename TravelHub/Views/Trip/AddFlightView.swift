@@ -60,6 +60,7 @@ struct AddFlightView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
                     .controlSize(.large)
                     .disabled(FlightService.normalize(flightNumber).count < 3 || isSearching || aeroKey.isEmpty)
 

@@ -17,6 +17,7 @@
 		315F77BE4D41BE07682D6D09 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD3F55323A8D14424D049AC /* RootView.swift */; };
 		34CC43E32C1352940C810C99 /* TripInfoServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = D93EEA135031EAD5EEB59E31 /* TripInfoServices.swift */; };
 		546BFE2972253BCFFF43F7A7 /* DiscoverCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67AC3EA4E34C4EAEF834004B /* DiscoverCards.swift */; };
+		65A534B53800850479875652 /* TripCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AF9625EB23A09CB73A0BADE /* TripCover.swift */; };
 		6CE8944B43C4A626DFDC10B0 /* TripInfoViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAC45D1ECDE8B1E4E319B8B /* TripInfoViews.swift */; };
 		7E228F8F50A847B46279F9C6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5EAB2B84A06784ED599DF4E3 /* Assets.xcassets */; };
 		8411E25635CC53FC3DC6BC89 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742378157E7FCC5750997E28 /* SettingsView.swift */; };
@@ -38,6 +39,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0AF9625EB23A09CB73A0BADE /* TripCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCover.swift; sourceTree = "<group>"; };
 		11F1546336FD47750F8714CC /* StayViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StayViews.swift; sourceTree = "<group>"; };
 		1810BC901C449D05A827A606 /* DiscoverItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverItem.swift; sourceTree = "<group>"; };
 		375B9394805B4548B6FB9196 /* TravelHub-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "TravelHub-macOS.entitlements"; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 			children = (
 				93EAFDE07900D75881C069C2 /* Components.swift */,
 				ED10A89F605448531BA3C8A5 /* Theme.swift */,
+				0AF9625EB23A09CB73A0BADE /* TripCover.swift */,
 			);
 			path = Common;
 			sourceTree = "<group>";
@@ -295,6 +298,7 @@
 				D1A8C3ECADE1C39DEBBBDB75 /* Theme.swift in Sources */,
 				D93B7839E19C049C53187E92 /* TravelHubApp.swift in Sources */,
 				B7406B90CF8DFE68B183145A /* Trip.swift in Sources */,
+				65A534B53800850479875652 /* TripCover.swift in Sources */,
 				89F859AE2A5219AE616E5E31 /* TripDashboardView.swift in Sources */,
 				D2400A77CCA35257E5755482 /* TripHeroView.swift in Sources */,
 				34CC43E32C1352940C810C99 /* TripInfoServices.swift in Sources */,

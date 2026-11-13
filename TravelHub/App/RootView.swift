@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import MapKit
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
@@ -76,60 +77,70 @@ struct WelcomeView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                ZStack {
-                    Circle().fill(Color.accentColor.opacity(0.12)).frame(width: 96, height: 96)
-                    Image(systemName: "airplane.departure")
-                        .font(.system(size: 40, weight: .semibold))
-                        .foregroundStyle(.tint)
-                }
-                .padding(.top, 8)
+            VStack(spacing: 28) {
+                Map(initialPosition: .camera(MapCamera(centerCoordinate: .init(latitude: 28, longitude: 20), distance: 17_500_000)),
+                    interactionModes: [])
+                    .mapStyle(.imagery(elevation: .realistic))
+                    .frame(width: 280, height: 280)
+                    .clipShape(Circle())
+                    .shadow(color: .blue.opacity(0.35), radius: 40)
+                    .allowsHitTesting(false)
+                    .padding(.top, 12)
 
                 VStack(spacing: 8) {
-                    Text("Your whole trip, in one place").font(.title.bold()).multilineTextAlignment(.center)
-                    Text("Add your flights, find things to do, and build a day-by-day plan.")
+                    Text("All your travel, in one place").font(.largeTitle.bold()).multilineTextAlignment(.center)
+                    Text("Add your flights and hotel, find things to do, and build a day-by-day plan.")
                         .font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
-
-                VStack(alignment: .leading, spacing: 18) {
-                    feature("airplane", "Flights & stays", "Look up a flight number for times, gates and a route map.")
-                    feature("sparkle.magnifyingglass", "Discover", "Sights, food, nightlife and events near where you're going.")
-                    feature("calendar.day.timeline.left", "Plan", "A day-by-day timeline with travel times and a map.")
-                }
-                .card(padding: 22)
-                .frame(maxWidth: 460)
 
                 VStack(spacing: 12) {
                     Button {
                         model.isPresentingNewTrip = true
                     } label: {
-                        Text("Plan a Trip").frame(maxWidth: 320)
+                        Text("Plan a Trip").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
                     .controlSize(.large)
 
-                    Button("Explore a sample trip") {
+                    Button("Explore a Sample Trip") {
                         let trip = SampleData.insertTokyoTrip(into: context)
                         model.selectedTripID = trip.id
                     }
+                    .font(.body.weight(.semibold))
                 }
+                .frame(maxWidth: 360)
+
+                VStack(spacing: 0) {
+                    feature("airplane", .blue, "Flights & stays", "Look up a flight number for times, gates and a route map.")
+                    Divider().padding(.leading, 58)
+                    feature("mappin.and.ellipse", .orange, "Discover", "Sights, food, nightlife and events near where you're going.")
+                    Divider().padding(.leading, 58)
+                    feature("calendar", .red, "Plan", "A day-by-day itinerary with travel times and a map.")
+                }
+                .padding(.vertical, 4)
+                .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+                .frame(maxWidth: 460)
             }
             .padding(24)
             .frame(maxWidth: .infinity)
         }
         .background(Color.appBackground)
+        #if os(iOS)
+        .toolbar(.hidden, for: .navigationBar)
+        #endif
     }
 
-    private func feature(_ symbol: String, _ title: String, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: symbol)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.tint)
-                .frame(width: 30)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(text).font(.subheadline).foregroundStyle(.secondary)
+    private func feature(_ symbol: String, _ color: Color, _ title: String, _ text: String) -> some View {
+        HStack(spacing: 12) {
+            CircleIcon(symbol: symbol, color: color, size: 30)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(text).font(.caption).foregroundStyle(.secondary)
             }
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.vertical, 10)
     }
 }

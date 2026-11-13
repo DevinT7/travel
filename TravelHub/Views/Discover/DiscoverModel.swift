@@ -18,7 +18,7 @@ final class DiscoverModel {
     private(set) var searchResults: [DiscoverItem] = []
     private(set) var isSearching = false
 
-    private let center: CLLocationCoordinate2D
+    let center: CLLocationCoordinate2D
     private let start: Date
     private let end: Date
 

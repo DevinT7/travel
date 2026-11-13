@@ -22,8 +22,8 @@ struct DiscoverView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
-                chips
+            VStack(alignment: .leading, spacing: 20) {
+                categories
                 Group {
                     if !query.isEmpty {
                         searchResults
@@ -35,12 +35,12 @@ struct DiscoverView: View {
                 }
                 .padding(.horizontal, Metrics.gutter)
             }
-            .padding(.vertical, 12)
-            .readableWidth(1200)
+            .padding(.bottom, 32)
+            .readableWidth(1100)
         }
         .background(Color.appBackground)
-        .navigationTitle("Discover \(trip.destinationName)")
-        .inlineTitle()
+        .navigationTitle(trip.displayName)
+        .largeTitle()
         .searchable(text: $query, prompt: "Search places in \(trip.destinationName)")
         .onSubmit(of: .search) { Task { await model.search(query) } }
         .task(id: query) {
@@ -55,110 +55,103 @@ struct DiscoverView: View {
         }
     }
 
-    // MARK: Chips
+    // MARK: Category circles
 
-    private var chips: some View {
+    private var categories: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                Chip(title: "For You", symbol: "sparkles", isSelected: selectedCategory == nil) {
+            HStack(spacing: 6) {
+                CategoryCircle(title: "For You", symbol: "sparkles", color: .accentColor, isSelected: selectedCategory == nil) {
                     withAnimation(.snappy) { selectedCategory = nil }
                 }
                 ForEach(DiscoverCategory.browsable) { c in
-                    Chip(title: c.title, symbol: c.symbol, tint: c.color, isSelected: selectedCategory == c) {
+                    CategoryCircle(title: c.title, symbol: c.symbol, color: c.color, isSelected: selectedCategory == c) {
                         withAnimation(.snappy) { selectedCategory = c }
                     }
                 }
             }
-            .padding(.horizontal, Metrics.gutter)
+            .padding(.horizontal, Metrics.gutter - 4)
+            .padding(.vertical, 4)
         }
     }
 
-    // MARK: "For You": a featured sight then a carousel per category
+    // MARK: "For You": a top pick then a section per category
 
     private var allCategories: some View {
-        VStack(alignment: .leading, spacing: 30) {
+        VStack(alignment: .leading, spacing: 28) {
             if let featured = model.state(for: .sights).items.first(where: { $0.imageURL != nil }) {
-                FeaturedCard(item: featured, isSaved: savedIDs.contains(featured.id)) { openedItem = featured }
+                FeaturedCard(item: featured, distance: model.distance(to: featured), isSaved: savedIDs.contains(featured.id)) {
+                    openedItem = featured
+                }
             }
             ForEach(DiscoverCategory.browsable) { category in
-                carousel(category)
+                section(category)
             }
         }
     }
 
-    /// Apple Maps results have no photos, so they use dense rows instead of photo cards.
+    /// Apple Maps results have no photos, so they use list rows instead of photo cards.
     private func usesPhotos(_ category: DiscoverCategory) -> Bool { category == .sights || category == .events }
 
     private var featuredID: String? { model.state(for: .sights).items.first(where: { $0.imageURL != nil })?.id }
 
-    private func carousel(_ category: DiscoverCategory) -> some View {
+    private func section(_ category: DiscoverCategory) -> some View {
         let state = model.state(for: category)
-        let items = Array(state.items.filter { $0.id != featuredID }.prefix(12))
+        let items = state.items.filter { $0.id != featuredID }
         return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(category.title) {
+            SectionHeader(category.headline) {
                 if !state.items.isEmpty {
-                    Button("See all") { withAnimation(.snappy) { selectedCategory = category } }
+                    SeeAllButton { withAnimation(.snappy) { selectedCategory = category } }
                 }
             }
-            ScrollView(.horizontal, showsIndicators: false) {
-                Group {
-                    if let error = state.error {
-                        unavailable(category, error).frame(width: 320)
-                    } else if usesPhotos(category) {
-                        LazyHStack(spacing: 14) {
-                            if items.isEmpty {
-                                ForEach(0..<4, id: \.self) { _ in PlaceholderCard().frame(width: 250) }
-                            }
-                            ForEach(items) { item in
-                                DiscoverCard(item: item, distance: model.distance(to: item), isSaved: savedIDs.contains(item.id),
-                                             onOpen: { openedItem = item }, onToggleSave: { toggleSave(item) })
-                                    .frame(width: 250)
-                            }
+            if let error = state.error {
+                unavailable(category, error)
+            } else if usesPhotos(category) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 12) {
+                        if items.isEmpty {
+                            ForEach(0..<4, id: \.self) { _ in PlaceholderCard().frame(width: 220) }
                         }
-                    } else {
-                        LazyHGrid(rows: Array(repeating: GridItem(.fixed(70), spacing: 10), count: 3), spacing: 12) {
-                            if items.isEmpty {
-                                ForEach(0..<6, id: \.self) { _ in
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.cardBackground).frame(width: 300)
-                                }
-                            }
-                            ForEach(items) { item in
-                                CompactPlaceRow(item: item, distance: model.distance(to: item), isSaved: savedIDs.contains(item.id),
-                                                onOpen: { openedItem = item }, onToggleSave: { toggleSave(item) })
-                                    .frame(width: 300)
-                            }
+                        ForEach(items.prefix(12)) { item in
+                            DiscoverCard(item: item, distance: model.distance(to: item), isSaved: savedIDs.contains(item.id),
+                                         onOpen: { openedItem = item }, onToggleSave: { toggleSave(item) })
+                                .frame(width: 220)
                         }
                     }
+                    .scrollTargetLayout()
                 }
-                .scrollTargetLayout()
+                .scrollTargetBehavior(.viewAligned)
+                .scrollClipDisabled()
+            } else if items.isEmpty {
+                RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Color.cardBackground).frame(height: 180)
+            } else {
+                placeList(Array(items.prefix(4)))
             }
-            .scrollTargetBehavior(.viewAligned)
-            .scrollClipDisabled()
         }
         .task { await model.load(category) }
     }
 
+    private func placeList(_ items: [DiscoverItem]) -> some View {
+        PlaceList(items: items, distance: { model.distance(to: $0) }, isSaved: { savedIDs.contains($0.id) },
+                  onOpen: { openedItem = $0 }, onToggleSave: { toggleSave($0) })
+    }
+
     // MARK: Single category
 
-    private let gridColumns = [GridItem(.adaptive(minimum: 220), spacing: 14, alignment: .top)]
+    private let photoColumns = [GridItem(.adaptive(minimum: 160), spacing: 12, alignment: .top)]
 
     private func categoryPage(_ category: DiscoverCategory) -> some View {
         let state = model.state(for: category)
-        return VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(category.title).font(.title2.bold())
-                Spacer()
-                Picker("View", selection: $showMap) {
-                    Image(systemName: "square.grid.2x2").tag(false).accessibilityLabel("Grid")
-                    Image(systemName: "map").tag(true).accessibilityLabel("Map")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 110)
+        return VStack(alignment: .leading, spacing: 14) {
+            Picker("View", selection: $showMap) {
+                Text("List").tag(false)
+                Text("Map").tag(true)
             }
+            .pickerStyle(.segmented)
+
             if let error = state.error {
                 unavailable(category, error)
             } else if state.isLoading {
-                LazyVGrid(columns: gridColumns, spacing: 14) { ForEach(0..<6, id: \.self) { _ in PlaceholderCard() } }
+                LazyVGrid(columns: photoColumns, spacing: 12) { ForEach(0..<6, id: \.self) { _ in PlaceholderCard() } }
             } else if state.items.isEmpty, case .loaded = state {
                 EmptyStateView(symbol: category.symbol, title: "Nothing found",
                                message: "No \(category.title.lowercased()) found near \(trip.destinationName).")
@@ -166,30 +159,18 @@ struct DiscoverView: View {
                 DiscoverMapView(items: state.items, onOpen: { openedItem = $0 })
                     .frame(height: 520)
                     .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+            } else if usesPhotos(category) {
+                LazyVGrid(columns: photoColumns, spacing: 12) {
+                    ForEach(state.items) { item in
+                        DiscoverCard(item: item, distance: model.distance(to: item), isSaved: savedIDs.contains(item.id),
+                                     onOpen: { openedItem = item }, onToggleSave: { toggleSave(item) })
+                    }
+                }
             } else {
-                itemGrid(state.items, photos: usesPhotos(category))
+                placeList(state.items)
             }
         }
         .task(id: category) { await model.load(category) }
-    }
-
-    @ViewBuilder
-    private func itemGrid(_ items: [DiscoverItem], photos: Bool) -> some View {
-        if photos {
-            LazyVGrid(columns: gridColumns, spacing: 14) {
-                ForEach(items) { item in
-                    DiscoverCard(item: item, distance: model.distance(to: item), isSaved: savedIDs.contains(item.id),
-                                 onOpen: { openedItem = item }, onToggleSave: { toggleSave(item) })
-                }
-            }
-        } else {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 12)], spacing: 10) {
-                ForEach(items) { item in
-                    CompactPlaceRow(item: item, distance: model.distance(to: item), isSaved: savedIDs.contains(item.id),
-                                    onOpen: { openedItem = item }, onToggleSave: { toggleSave(item) })
-                }
-            }
-        }
     }
 
     // MARK: Search
@@ -202,7 +183,7 @@ struct DiscoverView: View {
                 EmptyStateView(symbol: "magnifyingglass", title: "No results",
                                message: "Try another name, or something like “ramen” or “rooftop bar”.")
             } else {
-                itemGrid(model.searchResults, photos: false)
+                placeList(model.searchResults)
             }
         }
     }
