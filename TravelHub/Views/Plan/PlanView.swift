@@ -134,7 +134,7 @@ struct PlanView: View {
             Text("Nothing planned yet").font(.headline)
             Text("Find things to do in Discover, or add your own plans.")
                 .font(.subheadline).foregroundStyle(.secondary)
-            Button("Discover \(trip.destinationName)") { app.selectedTab = .discover }
+            Button("Discover \(trip.destinationName)") { app.tripSection = .discover }
                 .font(.subheadline.weight(.semibold))
                 .buttonStyle(.borderless)
         }
@@ -470,7 +470,7 @@ private struct IdeasListView: View {
                 if ideas.isEmpty {
                     EmptyStateView(symbol: "lightbulb", title: "No saved ideas",
                                    message: "Tap + on anything in Discover to save it here, then give it a time when you're ready.",
-                                   actionTitle: "Go to Discover") { app.selectedTab = .discover }
+                                   actionTitle: "Go to Discover") { app.tripSection = .discover }
                         .listRowBackground(Color.clear)
                 }
                 ForEach(ideas) { item in

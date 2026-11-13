@@ -6,13 +6,14 @@ import SwiftUI
 /// the app's temporary folder, so the Mac layout can be checked without screen-recording access.
 @MainActor
 enum DebugSnapshot {
-    static func runIfRequested(model: AppModel) async {
+    static func runIfRequested(model: AppModel, trips: [Trip]) async {
         guard UserDefaults.standard.bool(forKey: "Snapshot") else { return }
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("snapshots", isDirectory: true)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let only = UserDefaults.standard.string(forKey: "SnapshotTabs")?.split(separator: ",").map(String.init)
-        for tab in [AppTab.trip, .discover, .plan, .trips] where only?.contains("\(tab)") ?? true {
-            model.selectedTab = tab
+        if model.selectedTripID == nil { model.selectedTripID = trips.first?.id }
+        for tab in TripSection.allCases where only?.contains("\(tab)") ?? true {
+            model.tripSection = tab
             try? await Task.sleep(for: .seconds(6))
             capture(to: folder.appendingPathComponent("\(tab).png"))
         }

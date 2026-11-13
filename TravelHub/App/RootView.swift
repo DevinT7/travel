@@ -2,38 +2,74 @@ import SwiftUI
 import SwiftData
 import MapKit
 
+/// Trips first: the app opens on the list of trips, and a trip opens into its own page with
+/// Overview, Plan and Discover. iPhone pushes the trip; iPad and Mac show trips in a sidebar.
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.modelContext) private var context
     @Query(sort: \Trip.startDate) private var trips: [Trip]
     @Environment(\.scenePhase) private var scenePhase
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    #endif
+    @State private var didAutoOpen = false
+
+    private var usesSidebar: Bool {
+        #if os(iOS)
+        sizeClass == .regular
+        #else
+        true
+        #endif
+    }
 
     var body: some View {
         @Bindable var model = model
-        let trip = model.currentTrip(from: trips)
-
-        TabView(selection: $model.selectedTab) {
-            Tab("Trip", systemImage: "airplane.departure", value: AppTab.trip) {
-                NavigationStack {
-                    if let trip { TripDashboardView(trip: trip).tripTitleMenu(trips: trips) } else { welcome }
+        Group {
+            if usesSidebar {
+                NavigationSplitView {
+                    TripsSidebar(trips: trips)
+                        .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
+                } detail: {
+                    NavigationStack {
+                        if let trip = trips.first(where: { $0.id == model.selectedTripID }) {
+                            TripView(trip: trip).id(trip.id)
+                        } else if trips.isEmpty {
+                            WelcomeView()
+                        } else {
+                            EmptyStateView(symbol: "suitcase", title: "Pick a trip",
+                                           message: "Choose a trip from the list, or create a new one.",
+                                           actionTitle: "New Trip") { model.isPresentingNewTrip = true }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color.appBackground)
+                        }
+                    }
                 }
-            }
-            Tab("Discover", systemImage: "sparkle.magnifyingglass", value: AppTab.discover) {
-                NavigationStack {
-                    if let trip { DiscoverView(trip: trip).id(trip.id).tripTitleMenu(trips: trips) } else { welcome }
+            } else {
+                // iPhone: the Trips list, or an open trip with its own tab bar at the bottom.
+                ZStack {
+                    if let id = model.path.first, let trip = trips.first(where: { $0.id == id }) {
+                        TripTabs(trip: trip)
+                            .id(trip.id)
+                            .transition(.opacity)
+                    } else {
+                        NavigationStack { TripsListView(trips: trips) }
+                            .transition(.opacity)
+                    }
                 }
-            }
-            Tab("Plan", systemImage: "calendar.day.timeline.left", value: AppTab.plan) {
-                NavigationStack {
-                    if let trip { PlanView(trip: trip).id(trip.id).tripTitleMenu(trips: trips) } else { welcome }
-                }
-            }
-            Tab("Trips", systemImage: "suitcase.fill", value: AppTab.trips) {
-                NavigationStack { TripsListView(trips: trips) }
+                .animation(.snappy(duration: 0.3), value: model.path)
             }
         }
-        .tabViewStyle(.sidebarAdaptable)
         .task { removeLegacyDemoData() }
+        // Once the trips have loaded: open a trip that's happening today, or pick one for the sidebar.
+        .task(id: trips.isEmpty) {
+            if !didAutoOpen, !trips.isEmpty {
+                didAutoOpen = true
+                if usesSidebar, model.selectedTripID == nil || !trips.contains(where: { $0.id == model.selectedTripID }) {
+                    model.selectedTripID = model.currentTrip(from: trips)?.id
+                }
+                model.openOngoingTrip(from: trips)
+            }
+        }
         // Keep flight Live Activities current, and start one for a flight leaving soon.
         .task(id: scenePhase) {
             switch scenePhase {
@@ -45,19 +81,21 @@ struct RootView: View {
             }
         }
         #if DEBUG && os(macOS)
-        .task { await DebugSnapshot.runIfRequested(model: model) }
+        .task { await DebugSnapshot.runIfRequested(model: model, trips: trips) }
         #endif
         #if DEBUG && os(iOS)
         .task {
             await DebugFlightDemo.runIfRequested(context: context)
-            model.selectedTripID = UserDefaults.standard.string(forKey: "selectedTripID").flatMap(UUID.init(uuidString:))
+            if UserDefaults.standard.string(forKey: "DemoFlight") != nil,
+               let id = UserDefaults.standard.string(forKey: "selectedTripID").flatMap(UUID.init(uuidString:)) {
+                model.selectedTripID = id
+                model.tripSection = .overview
+                model.path = [id]
+            }
         }
         #endif
         .sheet(isPresented: $model.isPresentingNewTrip, onDismiss: { model.newTripConfirmationText = nil }) {
-            NewTripView(initialText: model.newTripConfirmationText) { newTrip in
-                model.selectedTripID = newTrip.id
-                model.selectedTab = .trip
-            }
+            NewTripView(initialText: model.newTripConfirmationText) { model.open($0) }
         }
         .sheet(isPresented: $model.isPresentingSettings) {
             NavigationStack { SettingsView() }
@@ -73,36 +111,6 @@ struct RootView: View {
         strayFlights.forEach(context.delete)
         try? context.save()
     }
-
-    private var welcome: some View {
-        WelcomeView()
-            .navigationTitle("TravelHub")
-    }
-}
-
-/// Turns the navigation title into a menu for switching trips.
-private struct TripTitleMenu: ViewModifier {
-    @Environment(AppModel.self) private var model
-    let trips: [Trip]
-
-    func body(content: Content) -> some View {
-        content.toolbarTitleMenu {
-            ForEach(trips) { trip in
-                Button {
-                    model.selectedTripID = trip.id
-                } label: {
-                    Label("\(trip.displayName) · \(dateRangeText(trip.startDate, trip.endDate, tz: trip.timeZone))",
-                          systemImage: trip.id == model.currentTrip(from: trips)?.id ? "checkmark" : "suitcase")
-                }
-            }
-            Divider()
-            Button("New Trip…", systemImage: "plus") { model.isPresentingNewTrip = true }
-        }
-    }
-}
-
-extension View {
-    func tripTitleMenu(trips: [Trip]) -> some View { modifier(TripTitleMenu(trips: trips)) }
 }
 
 struct WelcomeView: View {

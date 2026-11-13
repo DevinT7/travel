@@ -30,6 +30,23 @@ final class DiscoverModel {
         end = trip.calendar.date(byAdding: .day, value: 1, to: trip.endDate) ?? trip.endDate
     }
 
+    // MARK: Cache
+
+    /// One model per search center, kept so switching between Overview, Plan and Discover doesn't
+    /// load everything again.
+    private static var cache: [String: DiscoverModel] = [:]
+    /// The city each trip was last exploring in Discover (nil: the destination).
+    static var lastPlace: [UUID: ExplorePlace] = [:]
+
+    static func cached(trip: Trip, place: ExplorePlace?) -> DiscoverModel {
+        let center = place?.coordinate ?? trip.sortedStays.first?.coordinate ?? trip.coordinate
+        let key = "\(trip.id)|\((center.latitude * 1000).rounded()),\((center.longitude * 1000).rounded())"
+        if let hit = cache[key] { return hit }
+        let model = DiscoverModel(trip: trip, place: place)
+        cache[key] = model
+        return model
+    }
+
     func state(for c: DiscoverCategory) -> LoadState { states[c] ?? .idle }
 
     func load(_ category: DiscoverCategory, force: Bool = false) async {

@@ -15,6 +15,7 @@ struct TripDashboardView: View {
     @State private var editingStay: Stay?
     @State private var addingActivity = false
     @State private var refreshError: String?
+    @State private var calendarMessage: String?
     /// Bumped when a Live Activity starts or stops, so the Track buttons redraw.
     @State private var trackingRevision = 0
 
@@ -29,24 +30,12 @@ struct TripDashboardView: View {
         ScrollView {
             VStack(spacing: 24) {
                 TripHeroView(trip: trip)
-                    #if os(iOS)
-                    .overlay(alignment: .topTrailing) {
-                        TripSwitcherMenu {
-                            Image(systemName: "suitcase")
-                                .font(.body.weight(.medium))
-                                .frame(width: 40, height: 40)
-                                .background(.regularMaterial, in: Circle())
-                        }
-                        .padding(.trailing, Metrics.gutter)
-                        .padding(.top, 8)
-                    }
-                    #endif
 
                 HStack(spacing: 8) {
                     QuickAction(title: "Flight", symbol: "airplane") { showingAddFlight = true }
                     QuickAction(title: "Stay", symbol: "bed.double") { showingAddStay = true }
                     QuickAction(title: "Activity", symbol: "plus") { addingActivity = true }
-                    QuickAction(title: "Discover", symbol: "mappin.and.ellipse") { model.selectedTab = .discover }
+                    QuickAction(title: "Discover", symbol: "mappin.and.ellipse") { model.tripSection = .discover }
                 }
                 .padding(.top, -6)
 
@@ -62,28 +51,34 @@ struct TripDashboardView: View {
             }
             .padding(.bottom, 32)
         }
+        #if os(iOS)
+        // The destination photo runs up under the navigation bar.
+        .ignoresSafeArea(edges: .top)
+        .statusBarFade()
+        #endif
         .background(Color.appBackground)
         .navigationTitle(trip.displayName)
         .inlineTitle()
         #if os(iOS)
-        .toolbar(.hidden, for: .navigationBar)
-        .statusBarFade()
-        #else
+        // The photo already shows the trip name; keep the bar to its buttons.
+        .toolbar(removing: .title)
+        #endif
         .toolbar {
-            ToolbarItem(placement: .navigation) {
-                TripSwitcherMenu { Label("Trips", systemImage: "suitcase") }
-            }
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button("Add Flight", systemImage: "airplane") { showingAddFlight = true }
                     Button("Add Stay", systemImage: "bed.double") { showingAddStay = true }
                     Button("Add Activity", systemImage: "plus") { addingActivity = true }
+                    Divider()
+                    Button("Add to Calendar", systemImage: "calendar.badge.plus") { addToCalendar() }
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label("More", systemImage: "ellipsis")
                 }
             }
         }
-        #endif
+        .alert(calendarMessage ?? "", isPresented: .init(get: { calendarMessage != nil }, set: { if !$0 { calendarMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        }
         .refreshable { await refreshAll() }
         .task(id: trip.id) { await loadInfo() }
         .task(id: trip.id) { await keepLiveFlightsFresh() }
@@ -167,7 +162,7 @@ struct TripDashboardView: View {
         let reference = max(Date.now, trip.startDate)
         let next = Array((trip.planItems ?? []).filter { $0.isScheduled && $0.end >= reference }.sorted { $0.start < $1.start }.prefix(4))
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader("Itinerary") { SeeAllButton(title: "View All") { model.selectedTab = .plan } }
+            SectionHeader("Itinerary") { SeeAllButton(title: "View All") { model.tripSection = .plan } }
             VStack(spacing: 0) {
                 if next.isEmpty {
                     HStack {
@@ -205,6 +200,18 @@ struct TripDashboardView: View {
         let home = Locale.current.currency?.identifier ?? "USD"
         if let dest = CurrencyService.currency(forCountry: trip.countryCode), dest != home {
             exchangeRate = try? await CurrencyService().rate(from: home, to: dest)
+        }
+    }
+
+    private func addToCalendar() {
+        Task {
+            do {
+                let added = try await CalendarExport.add(trip)
+                calendarMessage = added == 0 ? "Everything in \(trip.displayName) is already in your calendar."
+                    : "Added \(added) event\(added == 1 ? "" : "s") to your calendar: flights, where you're staying and your plans."
+            } catch {
+                calendarMessage = error.localizedDescription
+            }
         }
     }
 

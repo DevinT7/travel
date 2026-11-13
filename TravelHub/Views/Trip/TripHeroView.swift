@@ -46,51 +46,6 @@ struct TripHeroView: View {
     }
 }
 
-/// Menu listing every trip, used wherever the app lets you switch trips.
-struct TripSwitcherMenu<Label: View>: View {
-    @Environment(AppModel.self) private var model
-    @Query(sort: \Trip.startDate) private var trips: [Trip]
-    @ViewBuilder var label: Label
-
-    var body: some View {
-        Menu {
-            ForEach(trips) { trip in
-                Button {
-                    model.selectedTripID = trip.id
-                } label: {
-                    SwiftUI.Label("\(trip.displayName) · \(dateRangeText(trip.startDate, trip.endDate, tz: trip.timeZone))",
-                                  systemImage: trip.id == model.currentTrip(from: trips)?.id ? "checkmark" : "suitcase")
-                }
-            }
-            Divider()
-            if let current = model.currentTrip(from: trips) {
-                Button("Add to Calendar", systemImage: "calendar.badge.plus") { addToCalendar(current) }
-            }
-            Button("New Trip…", systemImage: "plus") { model.isPresentingNewTrip = true }
-        } label: {
-            label
-        }
-        .accessibilityLabel("Switch trip")
-        .alert(calendarMessage ?? "", isPresented: Binding(get: { calendarMessage != nil }, set: { if !$0 { calendarMessage = nil } })) {
-            Button("OK", role: .cancel) {}
-        }
-    }
-
-    @State private var calendarMessage: String?
-
-    private func addToCalendar(_ trip: Trip) {
-        Task {
-            do {
-                let added = try await CalendarExport.add(trip)
-                calendarMessage = added == 0 ? "Everything in \(trip.displayName) is already in your calendar."
-                    : "Added \(added) event\(added == 1 ? "" : "s") to your calendar: flights, where you're staying and your plans."
-            } catch {
-                calendarMessage = error.localizedDescription
-            }
-        }
-    }
-}
-
 /// The flight routes on a map, drawn as great-circle arcs.
 struct RouteMapCard: View {
     let trip: Trip

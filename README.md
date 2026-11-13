@@ -4,18 +4,19 @@ An all-in-one travel companion for iPhone, iPad and Mac, built in SwiftUI. Add y
 
 ## What's in it
 
-| Tab | What it does |
-|---|---|
-| **Trip** | A map of your flight routes, boarding-pass style flight cards (times in each airport's local zone, terminal, gate, baggage belt, delays), where you're staying, the weather forecast for your dates, local time and difference from home, a currency converter, and what's up next. |
-| **Discover** | A "For You" page with a featured sight and a row for each category (Sights, Food, Cafés, Museums & Arts, Outdoors, Nightlife, Shopping, Events), plus a grid or map view per category and search. Tap **+** to save an idea, or open a place to see its photo or Look Around street view, map, distance from your hotel, directions, website and Apple Maps place card. |
-| **Plan** | A day strip (Day 1, Day 2, …) and a timeline that mixes your plans, flights and hotel check-in/out. It shows the travel time between stops (walking or transit) and flags gaps that are too tight. Each day's stops appear as numbered pins on a map. An **Ideas** tray holds things you've saved but haven't given a time. |
-| **Trips** | Switch between trips or create new ones. You can also switch from the title menu on any tab. |
+The app opens on **Trips**: the trip happening now (or the next one) as a big card with its countdown, what's up next, and shortcuts into Plan and Discover, then your other upcoming trips and past trips. If a trip is happening today, the app opens straight into it; Back returns to the list. Tap **+** to create a trip — or paste a flight confirmation to fill in the city, dates and flights.
 
-**Live Activities (iPhone):** a flight leaving within 4 hours appears on the Lock Screen and in the Dynamic Island when you open the app, or tap **Track Live on Lock Screen** under any flight in the next day. It counts down to departure, shows terminal and gate (and baggage belt after landing), and fills a progress bar during the flight. The app updates it when flight status refreshes; between refreshes the countdowns run on their own. With an AeroDataBox key, iOS also wakes the app in the background (usually every 15–60 minutes, at the system's discretion) from two hours before departure until landing, so delays and gate changes reach the Lock Screen without opening the app. Background refresh must be on (Settings → General → Background App Refresh); it doesn't run in the Simulator.
+Each trip has three sections (the tab bar on iPhone, the toolbar on iPad and Mac):
+
+| Section | What it does |
+|---|---|
+| **Overview** | A map of your flight routes, boarding-pass style flight cards (times in each airport's local zone, terminal, gate, baggage belt, delays), where you're staying, the weather forecast for your dates, local time and difference from home, a currency converter, and what's up next. The **⋯** menu adds flights, stays and activities, or adds the whole trip to your calendar. |
+| **Plan** | A day strip (Day 1, Day 2, …) and a timeline that mixes your plans, flights and hotel check-in/out. It shows the travel time between stops (walking or transit) and flags gaps that are too tight. Each day's stops appear as numbered pins on a map. An **Ideas** tray holds things you've saved but haven't given a time. |
+| **Discover** | A "For You" page with a featured sight and a row for each category (Sights, Food, Cafés, Museums & Arts, Outdoors, Nightlife, Shopping, Events), plus a grid or map view per category and search. **Near Seattle ▾** switches to another city: other stops on the trip, nearby towns, or any city you search. Tap **+** to save an idea, or open a place to see its photo or Look Around street view, map, distance, directions, website and Apple Maps place card. |
 
 All plan times are shown in the **destination's** time zone. Flight times are shown in each airport's own zone.
 
-On iPhone the tabs sit in a bottom tab bar. On iPad and Mac they become a sidebar, and Plan shows the timeline and map side by side.
+On iPhone, an open trip has Overview, Plan and Discover in the tab bar at the bottom, and the back button at the top left returns to the Trips list. On iPad and Mac, trips are listed in a sidebar, the selected trip fills the rest of the window with the three sections in the toolbar, and Plan shows the timeline and map side by side.
 
 ## Design
 
@@ -52,9 +53,9 @@ Without any keys, everything except live flight lookup and Events works. You can
 1. Go to the [AeroDataBox listing on RapidAPI](https://rapidapi.com/aedbx-aedbx/api/aerodatabox/pricing) and sign up or log in.
 2. Subscribe to the free **Basic** plan (400 API units a month, 1 request a second).
 3. Open any endpoint on the listing and copy the **X-RapidAPI-Key** value shown in the request headers.
-4. In TravelHub, open **Settings** (the gear on the Trips tab, or ⌘, on Mac) and paste it into **AeroDataBox (RapidAPI) key**.
+4. In TravelHub, open **Settings** (the gear on the Trips screen, or ⌘, on Mac) and paste it into **AeroDataBox (RapidAPI) key**.
 
-Add Flight then opens on **Look Up**, and pulling down on a trip refreshes every real flight with terminals, gates, baggage belts and delays — including flights you pasted or typed in. Add the keys in **Settings**: the gear on the Trips tab on iPhone, or **TravelHub → Settings…** (⌘,) on Mac. Keys are stored on the device.
+Add Flight then opens on **Look Up**, and pulling down on a trip refreshes every real flight with terminals, gates, baggage belts and delays — including flights you pasted or typed in. Add the keys in **Settings**: the gear on the Trips screen on iPhone, or **TravelHub → Settings…** (⌘,) on Mac. Keys are stored on the device.
 
 ## Running it
 
@@ -86,7 +87,7 @@ The first time, iOS asks you to trust the developer: **Settings → General → 
 
 ```
 TravelHub/
-  App/        App entry, tab/sidebar shell, trip switcher, welcome screen
+  App/        App entry, Trips home / sidebar shell, welcome screen
   Models/     SwiftData models (Trip, FlightSegment, Stay, PlanItem) and DiscoverItem
   Services/   AeroDataBox, Wikipedia, Apple Maps, Ticketmaster, weather, currency, directions, airports, confirmation parsing
   Views/

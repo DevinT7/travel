@@ -18,7 +18,9 @@ struct DiscoverView: View {
 
     init(trip: Trip) {
         self.trip = trip
-        _model = State(initialValue: DiscoverModel(trip: trip))
+        let place = DiscoverModel.lastPlace[trip.id]
+        _exploring = State(initialValue: place)
+        _model = State(initialValue: DiscoverModel.cached(trip: trip, place: place))
     }
 
     private var placeName: String { exploring?.name ?? trip.destinationName }
@@ -109,7 +111,8 @@ struct DiscoverView: View {
     private func explore(_ place: ExplorePlace?) {
         withAnimation(.snappy) {
             exploring = place
-            model = DiscoverModel(trip: trip, place: place)
+            DiscoverModel.lastPlace[trip.id] = place
+            model = DiscoverModel.cached(trip: trip, place: place)
             query = ""
         }
     }
