@@ -75,6 +75,7 @@ struct ManualFlightForm: View {
             .environment(\.timeZone, Self.gmt)
 
             Button {
+                dismissKeyboard()
                 if let flight = makeFlight() { onAdd(flight) }
             } label: {
                 Text("Add Flight").frame(maxWidth: .infinity)

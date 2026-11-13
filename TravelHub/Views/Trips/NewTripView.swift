@@ -5,6 +5,8 @@ import MapKit
 struct NewTripView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    /// Confirmation text pasted before this screen opened (from the welcome screen).
+    var initialText: String?
     var onCreate: (Trip) -> Void
 
     @State private var search = LocationSearch(kind: .city)
@@ -14,9 +16,18 @@ struct NewTripView: View {
     @State private var endDate = Calendar.current.date(byAdding: .day, value: 20, to: .now)!
     @State private var isResolving = false
 
+    // Starting from a pasted confirmation.
+    @State private var pastedText = ""
+    @State private var isTyping = false
+    @State private var isReading = false
+    @State private var draft: TripFromConfirmation.Draft?
+    @State private var readFailure: String?
+
     var body: some View {
         NavigationStack {
             Form {
+                pasteSection
+
                 Section("Where to?") {
                     if let destination {
                         HStack {
@@ -54,9 +65,15 @@ struct NewTripView: View {
                     }
                 }
 
-                Section("When") {
+                Section {
                     DatePicker("Start", selection: $startDate, displayedComponents: .date)
                     DatePicker("End", selection: $endDate, in: startDate..., displayedComponents: .date)
+                } header: {
+                    Text("When")
+                } footer: {
+                    if let draft, !draft.hasReturn {
+                        Text("No flight home in what you pasted, so check the end date.")
+                    }
                 }
 
                 Section {
@@ -66,6 +83,7 @@ struct NewTripView: View {
                 }
             }
             .formStyle(.grouped)
+            .keyboardDismissable()
             .navigationTitle("New Trip")
             .inlineTitle()
             .toolbar {
@@ -75,11 +93,110 @@ struct NewTripView: View {
                 }
             }
             .onChange(of: startDate) { _, new in if endDate < new { endDate = new } }
+            .task {
+                if let initialText, !initialText.isEmpty, draft == nil {
+                    pastedText = initialText
+                    await read()
+                }
+            }
         }
         #if os(macOS)
-        .frame(minWidth: 460, minHeight: 520)
+        .frame(minWidth: 460, minHeight: 560)
         #endif
     }
+
+    // MARK: Paste a confirmation
+
+    @ViewBuilder
+    private var pasteSection: some View {
+        Section {
+            if isReading {
+                HStack(spacing: 12) {
+                    ProgressView()
+                    Text("Reading your confirmation…").foregroundStyle(.secondary)
+                }
+            } else if let draft {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(draft.flights.count == 1 ? "1 flight found" : "\(draft.flights.count) flights found")
+                            .font(.headline)
+                        Text("Filled in \(draft.destination.name) and your dates. They'll be added to the trip.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                }
+                ForEach(draft.flights) { flight in
+                    HStack(spacing: 12) {
+                        CircleIcon(symbol: "airplane", color: .flight, size: 28)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("\(flight.departure.iata) → \(flight.arrival.iata)").font(.subheadline.weight(.semibold))
+                            Text("\(flight.flightNumber) · \(flight.departure.scheduled.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, timeZone: flight.departure.timeZone)))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Button("Remove Flights", role: .destructive) { self.draft = nil; pastedText = "" }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Already booked?").font(.headline)
+                    Text("Paste your flight confirmation and TravelHub fills in where you're going, your dates and your flights.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+                HStack {
+                    PasteButton(payloadType: String.self) { strings in
+                        let text = strings.joined(separator: "\n")
+                        Task { @MainActor in
+                            pastedText = text
+                            await read()
+                        }
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .buttonBorderShape(.capsule)
+                    Spacer()
+                    Button(isTyping ? "Hide" : "Type It In") { withAnimation { isTyping.toggle() } }
+                        .buttonStyle(.borderless)
+                        .font(.subheadline)
+                }
+                if isTyping {
+                    TextEditor(text: $pastedText)
+                        .frame(minHeight: 110)
+                        .font(.callout)
+                        .autocorrectionDisabled()
+                    Button("Find Flights") { Task { await read() } }
+                        .disabled(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                if let readFailure {
+                    Label(readFailure, systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote).foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
+    private func read() async {
+        dismissKeyboard()
+        isReading = true
+        readFailure = nil
+        defer { isReading = false }
+        switch await TripFromConfirmation.draft(from: pastedText) {
+        case .success(let found):
+            draft = found
+            destination = found.destination
+            startDate = found.startDate
+            endDate = found.endDate
+            isTyping = false
+        case .failure(.noFlights(let unknown)):
+            draft = nil
+            readFailure = unknown.isEmpty
+                ? "No flights found. The text needs flight numbers, airport codes (like AUS) and times. You can also fill in the trip below."
+                : "Couldn't find the airport\(unknown.count == 1 ? "" : "s") \(unknown.joined(separator: ", "))."
+            isTyping = true
+        }
+    }
+
+    // MARK: Create
 
     private func pick(_ completion: MKLocalSearchCompletion) async {
         isResolving = true
@@ -95,6 +212,10 @@ struct NewTripView: View {
                         timeZoneIdentifier: tz.identifier,
                         startDate: Self.sameDay(startDate, in: tz), endDate: Self.sameDay(endDate, in: tz))
         context.insert(trip)
+        for flight in draft?.flights ?? [] {
+            context.insert(flight)
+            flight.trip = trip
+        }
         try? context.save()
         onCreate(trip)
         dismiss()

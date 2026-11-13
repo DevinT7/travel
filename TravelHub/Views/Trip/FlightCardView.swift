@@ -3,6 +3,8 @@ import SwiftUI
 /// Compact flight card: airport codes with local times either side of a route line, then gate details.
 struct FlightCardView: View {
     let flight: FlightSegment
+    /// Optional row at the bottom of the card (e.g. the Live Activity control on the trip page).
+    var footer: AnyView? = nil
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { _ in card }
@@ -35,11 +37,16 @@ struct FlightCardView: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 0) {
+            HStack(spacing: 8) {
                 detail("Terminal", flight.departure.terminal)
                 detail("Gate", flight.departure.gate)
                 detail("Arr. Terminal", flight.arrival.terminal)
                 detail("Bags", flight.arrival.baggageBelt)
+            }
+
+            if let footer {
+                Divider()
+                footer
             }
         }
         .card()
@@ -66,6 +73,7 @@ struct FlightCardView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             Text(value?.isEmpty == false ? value! : "–").font(.subheadline.weight(.semibold))
+                .lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

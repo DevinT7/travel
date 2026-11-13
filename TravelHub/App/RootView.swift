@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.modelContext) private var context
     @Query(sort: \Trip.startDate) private var trips: [Trip]
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         @Bindable var model = model
@@ -33,11 +34,22 @@ struct RootView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .task { removeLegacyDemoData() }
+        // Keep flight Live Activities current, and start one for a flight leaving soon.
+        .task(id: scenePhase) { if scenePhase == .active { await FlightActivities.syncAll() } }
         #if DEBUG && os(macOS)
         .task { await DebugSnapshot.runIfRequested(model: model) }
         #endif
-        .sheet(isPresented: $model.isPresentingNewTrip) {
-            NewTripView { newTrip in model.selectedTripID = newTrip.id; model.selectedTab = .trip }
+        #if DEBUG && os(iOS)
+        .task {
+            await DebugFlightDemo.runIfRequested(context: context)
+            model.selectedTripID = UserDefaults.standard.string(forKey: "selectedTripID").flatMap(UUID.init(uuidString:))
+        }
+        #endif
+        .sheet(isPresented: $model.isPresentingNewTrip, onDismiss: { model.newTripConfirmationText = nil }) {
+            NewTripView(initialText: model.newTripConfirmationText) { newTrip in
+                model.selectedTripID = newTrip.id
+                model.selectedTab = .trip
+            }
         }
         .sheet(isPresented: $model.isPresentingSettings) {
             NavigationStack { SettingsView() }
@@ -116,6 +128,20 @@ struct WelcomeView: View {
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.capsule)
                     .controlSize(.large)
+
+                    // Already booked: start the trip straight from the airline's confirmation.
+                    PasteButton(payloadType: String.self) { strings in
+                        let text = strings.joined(separator: "\n")
+                        Task { @MainActor in
+                            model.newTripConfirmationText = text
+                            model.isPresentingNewTrip = true
+                        }
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
+                    Text("Already booked? Copy your flight confirmation and paste it to fill in the city, dates and flights.")
+                        .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: 360)
 

@@ -15,6 +15,8 @@ struct TripDashboardView: View {
     @State private var editingStay: Stay?
     @State private var addingActivity = false
     @State private var refreshError: String?
+    /// Bumped when a Live Activity starts or stops, so the Track buttons redraw.
+    @State private var trackingRevision = 0
 
     private let columns = [GridItem(.adaptive(minimum: 340), spacing: 12, alignment: .top)]
 
@@ -104,15 +106,21 @@ struct TripDashboardView: View {
                 RouteMapCard(trip: trip)
                 LazyVGrid(columns: columns(for: trip.sortedFlights.count), spacing: 12) {
                     ForEach(trip.sortedFlights) { flight in
-                        FlightCardView(flight: flight)
+                        FlightCardView(flight: flight,
+                                       footer: FlightActivities.canTrack(flight) ? AnyView(liveRow(flight)) : nil)
                             .contextMenu {
                                 Button("Refresh Status", systemImage: "arrow.clockwise") {
                                     Task { await refresh(flight) }
                                 }
+                                if FlightActivities.canTrack(flight) {
+                                    trackButton(flight)
+                                }
                                 Button("Remove Flight", systemImage: "trash", role: .destructive) {
                                     context.delete(flight); try? context.save()
+                                    Task { await FlightActivities.syncAll() }
                                 }
                             }
+                        .id("\(flight.id)-\(trackingRevision)")
                     }
                 }
             }
@@ -200,6 +208,49 @@ struct TripDashboardView: View {
         }
     }
 
+    /// Bottom row of a flight card: "Live on Lock Screen · Stop", or a button to start tracking.
+    private func liveRow(_ flight: FlightSegment) -> some View {
+        HStack(spacing: 8) {
+            if FlightActivities.isTracking(flight) {
+                Circle().fill(.green).frame(width: 8, height: 8)
+                Text("Live on Lock Screen").font(.subheadline.weight(.medium))
+                Spacer()
+                Button("Stop") {
+                    Task { await FlightActivities.stop(flight); trackingRevision += 1 }
+                }
+                .font(.subheadline)
+                .buttonStyle(.borderless)
+            } else {
+                Button {
+                    FlightActivities.start(flight)
+                    trackingRevision += 1
+                } label: {
+                    HStack {
+                        Label("Track Live on Lock Screen", systemImage: "livephoto")
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.flight)
+            }
+        }
+    }
+
+    /// Start or stop the flight's Live Activity (Lock Screen and Dynamic Island).
+    private func trackButton(_ flight: FlightSegment) -> some View {
+        let tracking = FlightActivities.isTracking(flight)
+        return Button(tracking ? "Stop Live Tracking" : "Track Live on Lock Screen",
+                      systemImage: tracking ? "stop.circle" : "livephoto") {
+            Task {
+                if tracking { await FlightActivities.stop(flight) } else { FlightActivities.start(flight) }
+                trackingRevision += 1
+            }
+        }
+    }
+
     private func refreshAll() async {
         for flight in trip.sortedFlights { await refresh(flight) }
         await loadInfo()
@@ -209,6 +260,7 @@ struct TripDashboardView: View {
         do {
             try await FlightService().refresh(flight)
             try? context.save()
+            await FlightActivities.syncAll()
         } catch {
             if !quietly { refreshError = error.localizedDescription }
         }

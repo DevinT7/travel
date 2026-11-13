@@ -22,9 +22,10 @@ final class DiscoverModel {
     private let start: Date
     private let end: Date
 
-    init(trip: Trip) {
+    /// - Parameter place: another city to explore; nil for the trip's destination.
+    init(trip: Trip, place: ExplorePlace? = nil) {
         // Search around the hotel if there is one: that's where the traveller will be.
-        center = trip.sortedStays.first?.coordinate ?? trip.coordinate
+        center = place?.coordinate ?? trip.sortedStays.first?.coordinate ?? trip.coordinate
         start = trip.startDate
         end = trip.calendar.date(byAdding: .day, value: 1, to: trip.endDate) ?? trip.endDate
     }

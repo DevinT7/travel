@@ -28,7 +28,7 @@ struct WeatherStripView: View {
             }
             .card()
         } else {
-            ScrollView(.horizontal, showsIndicators: false) {
+            HorizontalScroller {
                 HStack(spacing: 4) {
                     ForEach(forecast) { day in
                         VStack(spacing: 8) {

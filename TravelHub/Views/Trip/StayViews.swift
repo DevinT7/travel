@@ -135,6 +135,7 @@ struct StayEditorView: View {
             }
             .formStyle(.grouped)
             .environment(\.timeZone, trip.timeZone)
+            .keyboardDismissable()
             .navigationTitle(stay == nil ? "Add Stay" : "Edit Stay")
             .inlineTitle()
             .toolbar {

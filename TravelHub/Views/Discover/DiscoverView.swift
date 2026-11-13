@@ -12,17 +12,23 @@ struct DiscoverView: View {
     @State private var query = ""
     @State private var openedItem: DiscoverItem?
     @State private var showMap = false
+    /// Another city to browse instead of the destination (a day trip or the next stop).
+    @State private var exploring: ExplorePlace?
+    @State private var showingPlacePicker = false
 
     init(trip: Trip) {
         self.trip = trip
         _model = State(initialValue: DiscoverModel(trip: trip))
     }
 
+    private var placeName: String { exploring?.name ?? trip.destinationName }
+
     private var savedIDs: Set<String> { Set((trip.planItems ?? []).compactMap(\.sourceID)) }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                placeBar
                 categories
                 Group {
                     if !query.isEmpty {
@@ -34,6 +40,8 @@ struct DiscoverView: View {
                     }
                 }
                 .padding(.horizontal, Metrics.gutter)
+                // A new place reloads every section.
+                .id(exploring?.id ?? "destination")
             }
             .padding(.bottom, 32)
             #if os(macOS)
@@ -44,7 +52,7 @@ struct DiscoverView: View {
         .background(Color.appBackground)
         .navigationTitle(trip.displayName)
         .largeTitle()
-        .searchable(text: $query, prompt: "Search places in \(trip.destinationName)")
+        .searchable(text: $query, prompt: "Search places in \(placeName)")
         .onSubmit(of: .search) { Task { await model.search(query) } }
         .task(id: query) {
             // Debounced type-ahead search.
@@ -53,15 +61,63 @@ struct DiscoverView: View {
             guard !Task.isCancelled else { return }
             await model.search(query)
         }
+        .sheet(isPresented: $showingPlacePicker) {
+            ExplorePlacePicker(trip: trip, current: exploring) { explore($0) }
+        }
         .sheet(item: $openedItem) { item in
             DiscoverDetailView(item: item, trip: trip, distance: model.distance(to: item))
+        }
+    }
+
+    // MARK: Where to look
+
+    private var placeBar: some View {
+        HStack(spacing: 10) {
+            Button {
+                showingPlacePicker = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: exploring == nil ? "location.fill" : "location.magnifyingglass")
+                        .foregroundStyle(.tint)
+                    Text("Near \(placeName)").fontWeight(.semibold).lineLimit(1)
+                    Image(systemName: "chevron.down").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                }
+                .font(.subheadline)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.cardBackground, in: Capsule())
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Explore another city")
+
+            if exploring != nil {
+                Button {
+                    explore(nil)
+                } label: {
+                    Label("Back to \(trip.destinationName)", systemImage: "arrow.uturn.backward")
+                        .font(.subheadline.weight(.medium))
+                }
+                .buttonStyle(.borderless)
+                .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Metrics.gutter)
+    }
+
+    private func explore(_ place: ExplorePlace?) {
+        withAnimation(.snappy) {
+            exploring = place
+            model = DiscoverModel(trip: trip, place: place)
+            query = ""
         }
     }
 
     // MARK: Category circles
 
     private var categories: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        HorizontalScroller {
             HStack(spacing: 6) {
                 CategoryCircle(title: "For You", symbol: "sparkles", color: .accentColor, isSelected: selectedCategory == nil) {
                     withAnimation(.snappy) { selectedCategory = nil }
@@ -109,7 +165,7 @@ struct DiscoverView: View {
             if let error = state.error {
                 unavailable(category, error)
             } else if usesPhotos(category) {
-                ScrollView(.horizontal, showsIndicators: false) {
+                HorizontalScroller {
                     LazyHStack(spacing: 12) {
                         if items.isEmpty {
                             ForEach(0..<4, id: \.self) { _ in PlaceholderCard().frame(width: 220) }
@@ -157,7 +213,7 @@ struct DiscoverView: View {
                 LazyVGrid(columns: photoColumns, spacing: 12) { ForEach(0..<6, id: \.self) { _ in PlaceholderCard() } }
             } else if state.items.isEmpty, case .loaded = state {
                 EmptyStateView(symbol: category.symbol, title: "Nothing found",
-                               message: "No \(category.title.lowercased()) found near \(trip.destinationName).")
+                               message: "No \(category.title.lowercased()) found near \(placeName).")
             } else if showMap {
                 DiscoverMapView(items: state.items, onOpen: { openedItem = $0 })
                     .frame(height: 520)

@@ -88,6 +88,7 @@ struct PasteFlightsForm: View {
                     }
                 }
                 Button {
+                    dismissKeyboard()
                     onAdd(newFlights)
                 } label: {
                     Text(newFlights.isEmpty ? "Already Added" : "Add \(newFlights.count) Flight\(newFlights.count == 1 ? "" : "s")")
@@ -102,6 +103,7 @@ struct PasteFlightsForm: View {
     }
 
     private func read() async {
+        dismissKeyboard()
         isReading = true
         defer { isReading = false; didRead = true }
         let result = await ConfirmationImporter.build(from: text, trip: trip)

@@ -63,11 +63,31 @@ struct TripSwitcherMenu<Label: View>: View {
                 }
             }
             Divider()
+            if let current = model.currentTrip(from: trips) {
+                Button("Add to Calendar", systemImage: "calendar.badge.plus") { addToCalendar(current) }
+            }
             Button("New Trip…", systemImage: "plus") { model.isPresentingNewTrip = true }
         } label: {
             label
         }
         .accessibilityLabel("Switch trip")
+        .alert(calendarMessage ?? "", isPresented: Binding(get: { calendarMessage != nil }, set: { if !$0 { calendarMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        }
+    }
+
+    @State private var calendarMessage: String?
+
+    private func addToCalendar(_ trip: Trip) {
+        Task {
+            do {
+                let added = try await CalendarExport.add(trip)
+                calendarMessage = added == 0 ? "Everything in \(trip.displayName) is already in your calendar."
+                    : "Added \(added) event\(added == 1 ? "" : "s") to your calendar: flights, where you're staying and your plans."
+            } catch {
+                calendarMessage = error.localizedDescription
+            }
+        }
     }
 }
 

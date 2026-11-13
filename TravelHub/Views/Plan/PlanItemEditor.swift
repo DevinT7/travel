@@ -130,6 +130,7 @@ struct PlanItemEditor: View {
             }
             .formStyle(.grouped)
             .environment(\.timeZone, trip.timeZone)
+            .keyboardDismissable()
             .navigationTitle(navTitle)
             .inlineTitle()
             .toolbar {
@@ -189,7 +190,7 @@ struct PlanItemEditor: View {
     private var dayPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Day")
-            ScrollView(.horizontal, showsIndicators: false) {
+            HorizontalScroller {
                 HStack(spacing: 8) {
                     ForEach(trip.days, id: \.self) { d in
                         let selected = trip.calendar.isDate(d, inSameDayAs: day)

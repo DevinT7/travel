@@ -12,8 +12,18 @@ enum ConfirmationImporter {
     }
 
     static func build(from text: String, trip: Trip) async -> Result {
+        let result = await build(from: text, reference: trip.startDate)
+        for flight in result.flights {
+            if trip.isNearDestination(flight.departure) { flight.departure.city = trip.destinationName }
+            if trip.isNearDestination(flight.arrival) { flight.arrival.city = trip.destinationName }
+        }
+        return result
+    }
+
+    /// Flights in the text, without a trip yet (used to create a trip from a confirmation).
+    static func build(from text: String, reference: Date) async -> Result {
         var result = Result()
-        for parsed in ConfirmationParser.parse(text, reference: trip.startDate) {
+        for parsed in ConfirmationParser.parse(text, reference: reference) {
             guard let fromCode = parsed.fromCode, let toCode = parsed.toCode,
                   let day = parsed.date, let depTime = parsed.departs, let arrTime = parsed.arrives else { continue }
             guard var dep = await AirportLookup.resolve(code: fromCode) else { result.unknownAirports.append(fromCode); continue }
@@ -31,8 +41,6 @@ enum ConfirmationImporter {
             }
             dep.scheduled = departs
             arr.scheduled = arrives
-            if trip.isNearDestination(dep) { dep.city = trip.destinationName }
-            if trip.isNearDestination(arr) { arr.city = trip.destinationName }
 
             let code = parsed.airlineCode ?? ""
             result.flights.append(FlightSegment(

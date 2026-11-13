@@ -54,7 +54,10 @@ struct AddFlightView: View {
                 .padding(Metrics.gutter)
                 .readableWidth(560)
             }
-            .background(Color.appBackground)
+            // Tapping empty space or dragging the page down puts the keyboard away.
+            .background(Color.appBackground.onTapGesture { dismissKeyboard() })
+            .keyboardDismissable()
+            .onChange(of: mode) { dismissKeyboard() }
             .navigationTitle("Add Flight")
             .inlineTitle()
             .toolbar {
@@ -127,6 +130,7 @@ struct AddFlightView: View {
     }
 
     private func search() async {
+        dismissKeyboard()
         guard FlightService.normalize(flightNumber).count >= 3 else { return }
         isSearching = true
         error = nil
@@ -146,6 +150,7 @@ struct AddFlightView: View {
     }
 
     private func add(_ flight: FlightSegment) {
+        dismissKeyboard()
         insert(flight)
         results.removeAll { $0.id == flight.id }
         if results.isEmpty { dismiss() }

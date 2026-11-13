@@ -291,7 +291,7 @@ private struct DayPicker: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
+            HorizontalScroller {
                 HStack(spacing: 8) {
                     ForEach(Array(trip.days.enumerated()), id: \.element) { index, day in
                         let selected = selectedDay.map { trip.calendar.isDate($0, inSameDayAs: day) } ?? false
