@@ -21,6 +21,7 @@
 		306B39787F310386DEC0A841 /* DiscoverItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1810BC901C449D05A827A606 /* DiscoverItem.swift */; };
 		30B8C2CFB7AF486A90ABAB0E /* FlightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA4B83867C58AD61F19AC8A /* FlightCardView.swift */; };
 		315F77BE4D41BE07682D6D09 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD3F55323A8D14424D049AC /* RootView.swift */; };
+		316AE9FDA57F1AF4448B21C0 /* FlightBackgroundRefresh.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E3C8A627C1046C38D19D61 /* FlightBackgroundRefresh.swift */; };
 		34CC43E32C1352940C810C99 /* TripInfoServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = D93EEA135031EAD5EEB59E31 /* TripInfoServices.swift */; };
 		35000DD7266093B76F728013 /* FlightActivities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47061BBFB0F5C1F9847D0590 /* FlightActivities.swift */; };
 		546BFE2972253BCFFF43F7A7 /* DiscoverCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67AC3EA4E34C4EAEF834004B /* DiscoverCards.swift */; };
@@ -116,6 +117,7 @@
 		9BCF74ED55A58D6FA83CF2C1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A08BE6E2AF0A38B0852D4932 /* CalendarExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExport.swift; sourceTree = "<group>"; };
 		A41EA5FEB9BE10025E9C7D9B /* TripsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsListView.swift; sourceTree = "<group>"; };
+		A74FA47D03E79BF0B6B0A0E7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A8B9F9B8B574D9AB89DE266F /* TravelHub.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TravelHub.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B7FB815F7F9A9FF57CBD81D5 /* PlanItemEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanItemEditor.swift; sourceTree = "<group>"; };
 		BE85157750BC76E435BC525B /* Airlines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Airlines.swift; sourceTree = "<group>"; };
@@ -124,6 +126,7 @@
 		C2161D27E33181F5D5D27752 /* ExplorePlaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplorePlaces.swift; sourceTree = "<group>"; };
 		CA6F32F457356E4D7A9748B9 /* DiscoverDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverDetailView.swift; sourceTree = "<group>"; };
 		D2BD7DDF591BC9771EB4A0B3 /* DiscoverProviders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverProviders.swift; sourceTree = "<group>"; };
+		D2E3C8A627C1046C38D19D61 /* FlightBackgroundRefresh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlightBackgroundRefresh.swift; sourceTree = "<group>"; };
 		D38CE43846FA6525121AA8A8 /* ConfirmationParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationParser.swift; sourceTree = "<group>"; };
 		D93EEA135031EAD5EEB59E31 /* TripInfoServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripInfoServices.swift; sourceTree = "<group>"; };
 		DB205CB55F275CA0281B5C43 /* DiscoverModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverModel.swift; sourceTree = "<group>"; };
@@ -216,6 +219,7 @@
 			isa = PBXGroup;
 			children = (
 				5EAB2B84A06784ED599DF4E3 /* Assets.xcassets */,
+				A74FA47D03E79BF0B6B0A0E7 /* Info.plist */,
 				375B9394805B4548B6FB9196 /* TravelHub-macOS.entitlements */,
 			);
 			path = Resources;
@@ -259,6 +263,7 @@
 				D2BD7DDF591BC9771EB4A0B3 /* DiscoverProviders.swift */,
 				C2161D27E33181F5D5D27752 /* ExplorePlaces.swift */,
 				47061BBFB0F5C1F9847D0590 /* FlightActivities.swift */,
+				D2E3C8A627C1046C38D19D61 /* FlightBackgroundRefresh.swift */,
 				EE0DA1562E5A32D36958465D /* FlightService.swift */,
 				8AAD729FF281DD6ABEDFECB3 /* HTTP.swift */,
 				73ADFE076ABA029ED5689B44 /* LocationSearch.swift */,
@@ -437,6 +442,7 @@
 				DAF270CCD2A72218A123059B /* ExplorePlaces.swift in Sources */,
 				35000DD7266093B76F728013 /* FlightActivities.swift in Sources */,
 				FCB7175C27E4759ECE151EED /* FlightActivityAttributes.swift in Sources */,
+				316AE9FDA57F1AF4448B21C0 /* FlightBackgroundRefresh.swift in Sources */,
 				30B8C2CFB7AF486A90ABAB0E /* FlightCardView.swift in Sources */,
 				AEF086DDCF0724EBAACC02C0 /* FlightService.swift in Sources */,
 				0A702297D3C3B1DBAA698B38 /* HTTP.swift in Sources */,
@@ -514,6 +520,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TravelHub/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TravelHub;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "TravelHub adds your flights, hotel stays and plans to your calendar. It can't see your other events.";
@@ -694,6 +701,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TravelHub/Resources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TravelHub;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "TravelHub adds your flights, hotel stays and plans to your calendar. It can't see your other events.";

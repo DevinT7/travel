@@ -11,7 +11,7 @@ An all-in-one travel companion for iPhone, iPad and Mac, built in SwiftUI. Add y
 | **Plan** | A day strip (Day 1, Day 2, …) and a timeline that mixes your plans, flights and hotel check-in/out. It shows the travel time between stops (walking or transit) and flags gaps that are too tight. Each day's stops appear as numbered pins on a map. An **Ideas** tray holds things you've saved but haven't given a time. |
 | **Trips** | Switch between trips or create new ones. You can also switch from the title menu on any tab. |
 
-**Live Activities (iPhone):** a flight leaving within 4 hours appears on the Lock Screen and in the Dynamic Island when you open the app, or tap **Track Live on Lock Screen** under any flight in the next day. It counts down to departure, shows terminal and gate (and baggage belt after landing), and fills a progress bar during the flight. The app updates it when flight status refreshes; between refreshes the countdowns run on their own.
+**Live Activities (iPhone):** a flight leaving within 4 hours appears on the Lock Screen and in the Dynamic Island when you open the app, or tap **Track Live on Lock Screen** under any flight in the next day. It counts down to departure, shows terminal and gate (and baggage belt after landing), and fills a progress bar during the flight. The app updates it when flight status refreshes; between refreshes the countdowns run on their own. With an AeroDataBox key, iOS also wakes the app in the background (usually every 15–60 minutes, at the system's discretion) from two hours before departure until landing, so delays and gate changes reach the Lock Screen without opening the app. Background refresh must be on (Settings → General → Background App Refresh); it doesn't run in the Simulator.
 
 All plan times are shown in the **destination's** time zone. Flight times are shown in each airport's own zone.
 
@@ -109,7 +109,7 @@ The models already follow CloudKit's rules: every property has a default, relati
 ## Ideas for next steps
 
 - Home Screen widget for the next flight.
-- Push-driven Live Activity updates (needs a small server polling AeroDataBox and sending ActivityKit pushes).
+- Push-driven Live Activity updates for minute-by-minute changes (needs a small server polling AeroDataBox and sending ActivityKit pushes).
 - Background refresh of flight status, with notifications for gate changes and delays.
 - Import confirmation emails or PDFs (flights and hotels) with on-device text recognition.
 - Share a trip with travel companions through CloudKit sharing.

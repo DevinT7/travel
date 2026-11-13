@@ -19,6 +19,11 @@ targets:
     dependencies:
       - target: TravelHubWidgets
         destinationFilters: [iOS]
+    info:
+      path: TravelHub/Resources/Info.plist
+      properties:
+        UIBackgroundModes: [fetch]
+        BGTaskSchedulerPermittedIdentifiers: [com.devint.travelhub.flight-refresh]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.devint.travelhub

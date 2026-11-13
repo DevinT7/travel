@@ -13,6 +13,12 @@ struct TravelHubApp: App {
                 .environment(model)
         }
         .modelContainer(container)
+        #if os(iOS)
+        // iOS wakes the app now and then to refresh flight status for the Lock Screen.
+        .backgroundTask(.appRefresh(FlightBackgroundRefresh.taskID)) {
+            await FlightBackgroundRefresh.run()
+        }
+        #endif
         #if os(macOS)
         .defaultSize(width: 1180, height: 820)
         .commands {

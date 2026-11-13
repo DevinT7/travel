@@ -9,6 +9,12 @@ import Foundation
 @MainActor
 enum DebugFlightDemo {
     static func runIfRequested(context: ModelContext) async {
+        // `-RunBackgroundRefresh YES` runs the background refresh once, as iOS would.
+        defer {
+            if UserDefaults.standard.bool(forKey: "RunBackgroundRefresh") {
+                Task { await FlightBackgroundRefresh.run() }
+            }
+        }
         guard let phase = UserDefaults.standard.string(forKey: "DemoFlight") else { return }
         for activity in Activity<FlightActivityAttributes>.activities { await activity.end(nil, dismissalPolicy: .immediate) }
         let old = (try? context.fetch(FetchDescriptor<Trip>(predicate: #Predicate { $0.name == "Demo Trip" }))) ?? []
@@ -42,6 +48,7 @@ enum DebugFlightDemo {
         let flight = FlightSegment(flightNumber: "AS 1043", airlineName: "Alaska Airlines", airlineCode: "AS",
                                    departure: dep, arrival: arr, status: status, aircraftModel: "Boeing 737-900",
                                    distanceKm: 2860)
+        flight.lastUpdated = now.addingTimeInterval(-3600) // due for a refresh
         context.insert(trip)
         context.insert(flight)
         flight.trip = trip

@@ -63,7 +63,7 @@ enum FlightActivities {
     /// Syncs against every flight in the database.
     static func syncAll() async {
         #if os(iOS)
-        let flights = (try? AppData.container.mainContext.fetch(FetchDescriptor<FlightSegment>())) ?? []
+        let flights = ((try? AppData.container.mainContext.fetch(FetchDescriptor<FlightSegment>())) ?? []).filter { $0.trip != nil }
         await sync(with: flights)
         #endif
     }

@@ -35,7 +35,15 @@ struct RootView: View {
         .tabViewStyle(.sidebarAdaptable)
         .task { removeLegacyDemoData() }
         // Keep flight Live Activities current, and start one for a flight leaving soon.
-        .task(id: scenePhase) { if scenePhase == .active { await FlightActivities.syncAll() } }
+        .task(id: scenePhase) {
+            switch scenePhase {
+            case .active:
+                await FlightActivities.syncAll()
+                FlightBackgroundRefresh.schedule()
+            case .background: FlightBackgroundRefresh.schedule()
+            default: break
+            }
+        }
         #if DEBUG && os(macOS)
         .task { await DebugSnapshot.runIfRequested(model: model) }
         #endif
