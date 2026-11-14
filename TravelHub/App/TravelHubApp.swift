@@ -44,7 +44,7 @@ enum AppData {
     /// Local store. To sync between iPhone and Mac, add the iCloud capability with a
     /// CloudKit container in Xcode and change `cloudKitDatabase` to `.automatic`.
     static let container: ModelContainer = {
-        let schema = Schema([Trip.self, FlightSegment.self, Stay.self, PlanItem.self])
+        let schema = Schema([Trip.self, FlightSegment.self, Stay.self, PlanItem.self, DriveLeg.self])
         let config = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
         do {
             return try ModelContainer(for: schema, configurations: config)

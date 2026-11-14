@@ -26,6 +26,10 @@ final class Trip {
     var stays: [Stay]? = []
     @Relationship(deleteRule: .cascade, inverse: \PlanItem.trip)
     var planItems: [PlanItem]? = []
+    @Relationship(deleteRule: .cascade, inverse: \DriveLeg.trip)
+    var drives: [DriveLeg]? = []
+    /// How the traveler gets between stops on the ground (`GettingAround`).
+    var gettingAroundRaw: String = GettingAround.auto.rawValue
 
     init(name: String, destinationName: String, coordinate: CLLocationCoordinate2D,
          countryCode: String?, timeZoneIdentifier: String?, startDate: Date, endDate: Date) {
@@ -62,6 +66,21 @@ extension Trip {
 
     var sortedStays: [Stay] {
         (stays ?? []).sorted { $0.checkIn < $1.checkIn }
+    }
+
+    var sortedDrives: [DriveLeg] {
+        (drives ?? []).sorted { $0.departure < $1.departure }
+    }
+
+    var gettingAround: GettingAround {
+        get { GettingAround(rawValue: gettingAroundRaw) ?? .auto }
+        set { gettingAroundRaw = newValue.rawValue }
+    }
+
+    /// Where the traveler is sleeping on a given night, if a stay covers it.
+    func stay(on date: Date) -> Stay? {
+        sortedStays.first { $0.checkIn <= date && date <= $0.checkOut }
+            ?? sortedStays.first { calendar.isDate($0.checkIn, inSameDayAs: date) || calendar.isDate($0.checkOut, inSameDayAs: date) }
     }
 
     /// Each calendar day of the trip, as the start of that day in the destination time zone.
@@ -213,4 +232,80 @@ final class PlanItem {
     var end: Date { start.addingTimeInterval(TimeInterval(durationMinutes * 60)) }
     var imageURL: URL? { imageURLString.flatMap(URL.init(string:)) }
     var externalURL: URL? { externalURLString.flatMap(URL.init(string:)) }
+}
+
+/// How the traveler gets between plan stops on the ground. "Auto" walks short hops and takes
+/// transit (or drives, where there's none) for longer ones.
+enum GettingAround: String, CaseIterable, Identifiable, Codable {
+    case auto, drive, transit, walk
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .auto: "Automatic"
+        case .drive: "Driving"
+        case .transit: "Transit"
+        case .walk: "Walking"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .auto: "point.topright.arrow.triangle.backward.to.point.bottomleft.scurvepath"
+        case .drive: "car.fill"
+        case .transit: "tram.fill"
+        case .walk: "figure.walk"
+        }
+    }
+}
+
+/// One end of a drive: a hotel, an airport, a plan stop or any address.
+struct DrivePlace: Codable, Hashable {
+    var name: String = ""
+    var address: String = ""
+    var latitude: Double = 0
+    var longitude: Double = 0
+
+    static let empty = DrivePlace()
+
+    var coordinate: CLLocationCoordinate2D { .init(latitude: latitude, longitude: longitude) }
+    var isSet: Bool { latitude != 0 || longitude != 0 }
+
+    init(name: String = "", address: String = "", coordinate: CLLocationCoordinate2D? = nil) {
+        self.name = name
+        self.address = address
+        self.latitude = coordinate?.latitude ?? 0
+        self.longitude = coordinate?.longitude ?? 0
+    }
+}
+
+/// A drive on the trip: a road-trip leg, the ride from the airport, or a day trip out of town.
+/// Drive time and distance come from Apple Maps (with traffic for the planned departure) and are
+/// stored so the plan and CarPlay can show them without a network request.
+@Model
+final class DriveLeg {
+    var id: UUID = UUID()
+    var from: DrivePlace = DrivePlace.empty
+    var to: DrivePlace = DrivePlace.empty
+    var departure: Date = Date()
+    /// Expected drive time from Apple Maps; 0 until the route has been looked up.
+    var travelMinutes: Int = 0
+    var distanceMeters: Double = 0
+    var avoidTolls: Bool = false
+    var avoidHighways: Bool = false
+    /// Rental car, own car, ride share: free text shown under the route.
+    var vehicle: String = ""
+    var notes: String = ""
+    var routeUpdatedAt: Date?
+    var trip: Trip?
+
+    init(from: DrivePlace, to: DrivePlace, departure: Date) {
+        self.from = from
+        self.to = to
+        self.departure = departure
+    }
+
+    var arrival: Date { departure.addingTimeInterval(TimeInterval(max(travelMinutes, 0) * 60)) }
+    var title: String { "Drive to \(to.name.isEmpty ? "destination" : to.name)" }
 }

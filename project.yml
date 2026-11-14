@@ -23,6 +23,14 @@ targets:
       path: TravelHub/Resources/Info.plist
       properties:
         UIBackgroundModes: [fetch]
+        # SwiftUI owns the phone window; CarPlay gets its own template scene.
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+          UISceneConfigurations:
+            CPTemplateApplicationSceneSessionRoleApplication:
+              - UISceneClassName: CPTemplateApplicationScene
+                UISceneConfigurationName: CarPlay
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).CarPlaySceneDelegate
         BGTaskSchedulerPermittedIdentifiers: [com.devint.travelhub.flight-refresh]
     settings:
       base:
@@ -31,7 +39,6 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: TravelHub
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.travel
@@ -45,6 +52,9 @@ targets:
         DEVELOPMENT_TEAM: F4Q68YM222
         "CODE_SIGN_IDENTITY[sdk=macosx*]": "-"
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": TravelHub/Resources/TravelHub-macOS.entitlements
+        # CarPlay (driving task). Simulator only until Apple grants the entitlement to the team at
+        # developer.apple.com/carplay; then add the same line for [sdk=iphoneos*].
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]": TravelHub/Resources/TravelHub-CarPlay.entitlements
         ENABLE_HARDENED_RUNTIME: YES
   TravelHubWidgets:
     type: app-extension
@@ -53,6 +63,7 @@ targets:
     sources:
       - path: TravelHubWidgets
       - path: TravelHub/Shared/FlightActivityAttributes.swift
+      - path: TravelHub/Shared/DriveActivityAttributes.swift
     info:
       path: TravelHubWidgets/Info.plist
       properties:

@@ -4,7 +4,7 @@ import MapKit
 
 /// One row on a day's timeline: a plan item, a flight, or a hotel check-in/out.
 struct TimelineEntry: Identifiable {
-    enum Kind { case plan(PlanItem), flight(FlightSegment, departing: Bool), stay(Stay, checkIn: Bool) }
+    enum Kind { case plan(PlanItem), flight(FlightSegment, departing: Bool), stay(Stay, checkIn: Bool), drive(DriveLeg) }
 
     let id: String
     let kind: Kind
@@ -17,8 +17,15 @@ struct TimelineEntry: Identifiable {
     let color: Color
     /// Flights show times in the airport's own zone; everything else uses the trip's.
     var timeZone: TimeZone?
+    /// Where the traveler is once this entry is over, when that's not where it started (a drive).
+    var endCoordinate: CLLocationCoordinate2D?
+    var endName: String?
 
     var planItem: PlanItem? { if case .plan(let p) = kind { p } else { nil } }
+    var drive: DriveLeg? { if case .drive(let d) = kind { d } else { nil } }
+    /// Where travel to the next stop starts from.
+    var departureCoordinate: CLLocationCoordinate2D? { endCoordinate ?? coordinate }
+    var place: DrivePlace? { coordinate.map { DrivePlace(name: title, address: subtitle, coordinate: $0) } }
 }
 
 struct PlanView: View {
@@ -32,6 +39,8 @@ struct PlanView: View {
     /// nil shows the "Ideas" list of unscheduled items.
     @State private var selectedDay: Date?
     @State private var editing: PlanItem?
+    @State private var editingDrive: DriveLeg?
+    @State private var newDrive: NewDrive?
     @State private var addingCustom = false
     @State private var showingMap = false
     @State private var focusedEntryID: String?
@@ -90,12 +99,69 @@ struct PlanView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button("Add to Plan", systemImage: "plus") { addingCustom = true }
+                gettingAroundMenu
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Add Plan", systemImage: "plus") { addingCustom = true }
+                    Button("Add Drive", systemImage: "car") {
+                        newDrive = NewDrive(departure: selectedDay.flatMap { trip.calendar.date(bySettingHour: 9, minute: 0, second: 0, of: $0) })
+                    }
+                } label: {
+                    Label("Add to Plan", systemImage: "plus")
+                } primaryAction: {
+                    addingCustom = true
+                }
             }
         }
         .onAppear { if selectedDay == nil { selectedDay = initialDay } }
         .sheet(item: $editing) { PlanItemEditor(trip: trip, mode: .edit($0)) }
+        .sheet(item: $editingDrive) { DriveLegEditor(trip: trip, leg: $0) }
+        .sheet(item: $newDrive) { DriveLegEditor(trip: trip, leg: nil, from: $0.from, to: $0.to, departure: $0.departure) }
         .sheet(isPresented: $addingCustom) { PlanItemEditor(trip: trip, mode: .custom(day: selectedDay)) }
+    }
+
+    /// A drive being created, prefilled from a gap in the plan.
+    struct NewDrive: Identifiable {
+        let id = UUID()
+        var from: DrivePlace?
+        var to: DrivePlace?
+        var departure: Date?
+    }
+
+    /// How to get between stops. Driving shows drive times and "leave by" between every stop.
+    private var gettingAroundMenu: some View {
+        Menu {
+            Picker("Getting Around", selection: $trip.gettingAround) {
+                ForEach(GettingAround.allCases) { mode in
+                    Label(mode.title, systemImage: mode.symbol).tag(mode)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label("Getting Around: \(trip.gettingAround.title)", systemImage: trip.gettingAround == .auto ? "car.2" : trip.gettingAround.symbol)
+        }
+        .onChange(of: trip.gettingAroundRaw) { try? context.save() }
+    }
+
+    private func open(_ entry: TimelineEntry) {
+        focusedEntryID = entry.id
+        if let item = entry.planItem { editing = item }
+        if let drive = entry.drive { editingDrive = drive }
+    }
+
+    @ViewBuilder
+    private func travelRow(_ entries: [TimelineEntry], _ index: Int) -> some View {
+        let prev = entries[index - 1], entry = entries[index]
+        if !isFlightLeg(prev, entry), let a = prev.departureCoordinate, let b = entry.coordinate, let to = entry.place {
+            TravelRow(from: a, to: b, destination: to, mode: trip.gettingAround,
+                      gap: entry.start.timeIntervalSince(prev.end ?? prev.start), arriveBy: entry.start, tz: trip.timeZone,
+                      onSaveAsDrive: { minutes in
+                          let fromPlace = DrivePlace(name: prev.endName ?? prev.title, address: prev.subtitle, coordinate: a)
+                          newDrive = NewDrive(from: fromPlace, to: to,
+                                              departure: entry.start.addingTimeInterval(-TimeInterval((minutes ?? 30) * 60)))
+                      })
+        }
     }
 
     /// Today if the trip is underway, otherwise the first day.
@@ -121,10 +187,22 @@ struct PlanView: View {
 
     private func entryMenu(_ entry: TimelineEntry) -> some View {
         Group {
+            if let place = entry.drive?.to ?? entry.place {
+                Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond") {
+                    DriveService.openDirections(to: place, mode: entry.drive != nil ? .drive : trip.gettingAround)
+                }
+            }
             if let item = entry.planItem {
                 Button("Edit", systemImage: "pencil") { editing = item }
                 Button("Move to Ideas", systemImage: "tray.and.arrow.down") { item.isScheduled = false; try? context.save() }
                 Button("Delete", systemImage: "trash", role: .destructive) { context.delete(item); try? context.save() }
+            }
+            if let drive = entry.drive {
+                Button("Edit Drive", systemImage: "pencil") { editingDrive = drive }
+                Button("Remove Drive", systemImage: "trash", role: .destructive) {
+                    context.delete(drive); try? context.save()
+                    Task { await DriveActivities.syncAll() }
+                }
             }
         }
     }
@@ -149,17 +227,12 @@ struct PlanView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if entries.isEmpty { emptyDay }
                     ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                        if index > 0, !isFlightLeg(entries[index - 1], entry),
-                           let a = entries[index - 1].coordinate, let b = entry.coordinate {
-                            TravelRow(from: a, to: b, gap: entry.start.timeIntervalSince(entries[index - 1].end ?? entries[index - 1].start))
-                                .padding(.leading, 4)
+                        if index > 0 {
+                            travelRow(entries, index).padding(.leading, 4)
                         }
                         TimelineRow(entry: entry, tz: entry.timeZone ?? trip.timeZone)
                             .contentShape(Rectangle())
-                            .onTapGesture {
-                                focusedEntryID = entry.id
-                                if let item = entry.planItem { editing = item }
-                            }
+                            .onTapGesture { open(entry) }
                             .contextMenu { entryMenu(entry) }
                     }
                 }
@@ -179,18 +252,14 @@ struct PlanView: View {
             Section {
                 if entries.isEmpty { emptyDay }
                 ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                    if index > 0, !isFlightLeg(entries[index - 1], entry),
-                       let a = entries[index - 1].coordinate, let b = entry.coordinate {
-                        TravelRow(from: a, to: b, gap: entry.start.timeIntervalSince(entries[index - 1].end ?? entries[index - 1].start))
+                    if index > 0 {
+                        travelRow(entries, index)
                             .listRowSeparator(.hidden)
                             .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 16))
                     }
                     TimelineRow(entry: entry, tz: entry.timeZone ?? trip.timeZone)
                         .contentShape(Rectangle())
-                        .onTapGesture {
-                            focusedEntryID = entry.id
-                            if let item = entry.planItem { editing = item }
-                        }
+                        .onTapGesture { open(entry) }
                         .listRowSeparator(.hidden)
                         .swipeActions(edge: .trailing) {
                             if let item = entry.planItem {
@@ -201,6 +270,20 @@ struct PlanView: View {
                                     item.isScheduled = false; try? context.save()
                                 }
                                 .tint(.orange)
+                            }
+                            if let drive = entry.drive {
+                                Button("Delete", systemImage: "trash", role: .destructive) {
+                                    context.delete(drive); try? context.save()
+                                    Task { await DriveActivities.syncAll() }
+                                }
+                            }
+                        }
+                        .swipeActions(edge: .leading) {
+                            if let place = entry.drive?.to ?? entry.place {
+                                Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond") {
+                                    DriveService.openDirections(to: place, mode: entry.drive != nil ? .drive : trip.gettingAround)
+                                }
+                                .tint(Color.drive)
                             }
                         }
                         .contextMenu { entryMenu(entry) }
@@ -227,9 +310,14 @@ struct PlanView: View {
 
     private func summary(_ entries: [TimelineEntry]) -> String {
         let plans = entries.compactMap(\.planItem)
-        guard !plans.isEmpty else { return "" }
-        let minutes = plans.reduce(0) { $0 + $1.durationMinutes }
-        return "\(plans.count) plan\(plans.count == 1 ? "" : "s") · \(PlanItemEditor.durationLabel(minutes)) of activities"
+        let driving = entries.compactMap(\.drive).reduce(0) { $0 + $1.travelMinutes }
+        var parts: [String] = []
+        if !plans.isEmpty {
+            let minutes = plans.reduce(0) { $0 + $1.durationMinutes }
+            parts.append("\(plans.count) plan\(plans.count == 1 ? "" : "s") · \(PlanItemEditor.durationLabel(minutes)) of activities")
+        }
+        if driving > 0 { parts.append("\(DriveService.durationText(driving)) of driving") }
+        return parts.joined(separator: " · ")
     }
 
     private func entries(for day: Date) -> [TimelineEntry] {
@@ -255,6 +343,14 @@ struct PlanView: View {
                                     coordinate: f.arrival.coordinate, symbol: "airplane.arrival", color: .flight,
                                     timeZone: f.arrival.timeZone))
             }
+        }
+        for d in trip.sortedDrives where cal.isDate(d.departure, inSameDayAs: day) {
+            let sub = [d.from.name.isEmpty ? nil : "From \(d.from.name)", d.summaryText.isEmpty ? nil : d.summaryText]
+                .compactMap { $0 }.joined(separator: " · ")
+            result.append(.init(id: "drive-\(d.id)", kind: .drive(d), start: d.departure, end: d.travelMinutes > 0 ? d.arrival : nil,
+                                title: d.title, subtitle: sub, coordinate: d.from.isSet ? d.from.coordinate : nil,
+                                symbol: "car.fill", color: .drive,
+                                endCoordinate: d.to.isSet ? d.to.coordinate : nil, endName: d.to.name))
         }
         for s in trip.sortedStays {
             if cal.isDate(s.checkIn, inSameDayAs: day) {
@@ -365,29 +461,72 @@ private struct TimelineRow: View {
     }
 }
 
-/// Travel time between two stops, shown as a quiet line under the previous row.
+/// Travel time between two stops, shown as a quiet line under the previous row. Tap for
+/// directions; long drives say when to leave and can be saved as a drive.
 private struct TravelRow: View {
     let from: CLLocationCoordinate2D
     let to: CLLocationCoordinate2D
+    let destination: DrivePlace
+    let mode: GettingAround
     let gap: TimeInterval
+    let arriveBy: Date
+    let tz: TimeZone
+    let onSaveAsDrive: (Int?) -> Void
     @State private var estimate: TravelEstimate?
 
+    private var directionsMode: GettingAround {
+        switch estimate?.mode {
+        case .drive: .drive
+        case .transit: .transit
+        case .walk: .walk
+        case nil: mode
+        }
+    }
+
     var body: some View {
-        HStack(spacing: 6) {
-            Rectangle().fill(Color.secondary.opacity(0.3)).frame(width: 2, height: 18).padding(.horizontal, 15)
-            if let estimate {
-                let tight = gap > 0 && TimeInterval(estimate.minutes * 60) > gap
-                Image(systemName: estimate.symbol)
-                Text(estimate.text + (tight ? " · Tight" : ""))
-                    .foregroundStyle(tight ? Color.orange : .secondary)
+        Button {
+            DriveService.openDirections(to: destination, mode: directionsMode)
+        } label: {
+            HStack(spacing: 6) {
+                Rectangle().fill(Color.secondary.opacity(0.3)).frame(width: 2, height: 18).padding(.horizontal, 15)
+                if let estimate {
+                    let tight = gap > 0 && TimeInterval(estimate.minutes * 60) > gap
+                    Image(systemName: estimate.symbol)
+                    Text(label(estimate, tight: tight))
+                        .foregroundStyle(tight ? Color.orange : .secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                if estimate != nil {
+                    Image(systemName: "arrow.triangle.turn.up.right.diamond").foregroundStyle(.tertiary)
+                }
             }
-            Spacer()
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .task(id: "\(from.latitude),\(from.longitude)>\(to.latitude),\(to.longitude)") {
-            estimate = await DirectionsService.shared.estimate(from: from, to: to)
+        .buttonStyle(.plain)
+        .disabled(estimate == nil)
+        .accessibilityLabel(estimate.map { "\($0.text). Directions to \(destination.name)" } ?? "")
+        .contextMenu {
+            Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond") {
+                DriveService.openDirections(to: destination, mode: directionsMode)
+            }
+            Button("Save as a Drive", systemImage: "car") { onSaveAsDrive(estimate?.mode == .drive ? estimate?.minutes : nil) }
         }
+        .task(id: "\(from.latitude),\(from.longitude)>\(to.latitude),\(to.longitude)|\(mode.rawValue)") {
+            estimate = await DirectionsService.shared.estimate(from: from, to: to, mode: mode)
+        }
+    }
+
+    /// "25 min drive · leave by 1:35 PM", or "· Tight" when the gap is shorter than the trip.
+    private func label(_ e: TravelEstimate, tight: Bool) -> String {
+        if tight { return e.text + " · Tight" }
+        if e.mode != .walk, e.minutes >= 10 {
+            let leave = arriveBy.addingTimeInterval(-TimeInterval(e.minutes * 60))
+            return e.text + " · leave by " + leave.time(in: tz)
+        }
+        return e.text
     }
 }
 
@@ -399,6 +538,9 @@ struct DayMapView: View {
     let fallback: CLLocationCoordinate2D
     @Binding var focusedID: String?
     @State private var position: MapCameraPosition = .automatic
+    @State private var routes: [UUID: [CLLocationCoordinate2D]] = [:]
+
+    private var drives: [DriveLeg] { entries.compactMap(\.drive) }
 
     /// The day's plan items, numbered in order. Airports and the hotel are left out of the numbering.
     private var stops: [(Int, TimelineEntry)] {
@@ -409,6 +551,7 @@ struct DayMapView: View {
     /// Fits the day's stops (or the hotel) with a minimum span so a single stop isn't zoomed to the rooftops.
     private var fittedRegion: MKCoordinateRegion {
         var coords = stops.compactMap { $0.1.coordinate }
+        coords += drives.flatMap { [$0.from, $0.to].filter(\.isSet).map(\.coordinate) }
         if coords.isEmpty { coords = stays.map(\.coordinate) }
         if coords.isEmpty { coords = [fallback] }
         let lats = coords.map(\.latitude), lons = coords.map(\.longitude)
@@ -423,6 +566,17 @@ struct DayMapView: View {
             if stops.count > 1 {
                 MapPolyline(coordinates: stops.compactMap { $0.1.coordinate })
                     .stroke(Color.orange.opacity(0.8), style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [6, 6]))
+            }
+            ForEach(drives) { leg in
+                if let coords = routes[leg.id] {
+                    MapPolyline(coordinates: coords)
+                        .stroke(Color.drive, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                }
+                if leg.to.isSet {
+                    Marker(leg.to.name, systemImage: "car.fill", coordinate: leg.to.coordinate)
+                        .tint(Color.drive)
+                        .tag("drive-\(leg.id)")
+                }
             }
             ForEach(stays) { stay in
                 Marker(stay.name, systemImage: "bed.double.fill", coordinate: stay.coordinate).tint(Color.stay)
@@ -444,8 +598,13 @@ struct DayMapView: View {
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .onAppear { position = .region(fittedRegion) }
         .onChange(of: entries.map(\.id)) { withAnimation { position = .region(fittedRegion) } }
+        .task(id: drives.map(\.id)) {
+            for leg in drives where routes[leg.id] == nil {
+                if let route = try? await DriveService.shared.route(for: leg) { routes[leg.id] = route.coordinates }
+            }
+        }
         .overlay {
-            if stops.isEmpty && stays.isEmpty {
+            if stops.isEmpty && stays.isEmpty && drives.isEmpty {
                 Text("Add places to see them on the map")
                     .font(.subheadline.weight(.medium))
                     .padding(.horizontal, 14).padding(.vertical, 8)

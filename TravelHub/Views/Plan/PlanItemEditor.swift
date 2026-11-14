@@ -107,6 +107,9 @@ struct PlanItemEditor: View {
                         Picker("Duration", selection: $duration) {
                             ForEach(Self.durations, id: \.self) { m in Text(Self.durationLabel(m)).tag(m) }
                         }
+                        if let destination {
+                            GettingThereRow(trip: trip, destination: destination, start: combinedStart, excluding: editingID)
+                        }
                     }
                 } footer: {
                     Text(isScheduled ? "Times are in \(trip.destinationName) local time."
@@ -152,6 +155,14 @@ struct PlanItemEditor: View {
     }
 
     private var isDiscover: Bool { if case .fromDiscover = mode { true } else { false } }
+
+    private var editingID: UUID? { if case .edit(let p) = mode { p.id } else { nil } }
+
+    /// Where this plan is, for the "getting there" estimate.
+    private var destination: CLLocationCoordinate2D? {
+        if case .fromDiscover(let item) = mode { return item.coordinate }
+        return place?.coordinate
+    }
 
     private var placeSection: some View {
         Section("Place") {
@@ -257,5 +268,52 @@ struct PlanItemEditor: View {
         item.isBooked = isBooked
         try? context.save()
         dismiss()
+    }
+}
+
+/// "35 min drive from Hotel Granvia · leave by 9:25 AM": how to reach a plan from wherever the
+/// traveler will be just before it (the previous stop that day, or the hotel).
+private struct GettingThereRow: View {
+    let trip: Trip
+    let destination: CLLocationCoordinate2D
+    let start: Date
+    let excluding: UUID?
+    @State private var estimate: TravelEstimate?
+
+    private var origin: (name: String, coordinate: CLLocationCoordinate2D)? {
+        let cal = trip.calendar
+        let earlier = (trip.planItems ?? [])
+            .filter { $0.isScheduled && $0.id != excluding && $0.coordinate != nil && $0.start < start && cal.isDate($0.start, inSameDayAs: start) }
+            .max { $0.start < $1.start }
+        let drive = trip.sortedDrives.filter { $0.to.isSet && $0.arrival <= start && cal.isDate($0.arrival, inSameDayAs: start) }.last
+        if let drive, drive.arrival > (earlier?.end ?? .distantPast) { return (drive.to.name, drive.to.coordinate) }
+        if let earlier, let c = earlier.coordinate { return (earlier.title, c) }
+        if let stay = trip.stay(on: start) { return (stay.name, stay.coordinate) }
+        return nil
+    }
+
+    var body: some View {
+        if let origin {
+            HStack(spacing: 10) {
+                Image(systemName: estimate?.symbol ?? trip.gettingAround.symbol)
+                    .foregroundStyle(Color.drive)
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Getting there").font(.caption).foregroundStyle(.secondary)
+                    if let estimate {
+                        Text("\(estimate.text) from \(origin.name)").lineLimit(2)
+                        if estimate.mode != .walk {
+                            Text("Leave by \(start.addingTimeInterval(-TimeInterval(estimate.minutes * 60)).time(in: trip.timeZone))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("From \(origin.name)").foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+            }
+            .task(id: "\(origin.coordinate.latitude),\(origin.coordinate.longitude)>\(destination.latitude),\(destination.longitude)|\(trip.gettingAroundRaw)") {
+                estimate = await DirectionsService.shared.estimate(from: origin.coordinate, to: destination, mode: trip.gettingAround)
+            }
+        }
     }
 }

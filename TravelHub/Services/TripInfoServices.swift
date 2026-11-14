@@ -132,16 +132,22 @@ final class DirectionsService {
     static let shared = DirectionsService()
     private var cache: [String: TravelEstimate] = [:]
 
-    /// Walking under ~1.5 km, otherwise transit (falling back to driving where transit isn't covered).
-    func estimate(from a: CLLocationCoordinate2D, to b: CLLocationCoordinate2D) async -> TravelEstimate? {
-        let key = String(format: "%.4f,%.4f>%.4f,%.4f", a.latitude, a.longitude, b.latitude, b.longitude)
+    /// With `.auto`: walking under ~1.5 km, otherwise transit (falling back to driving where transit
+    /// isn't covered). Other modes use that mode, except transit, which falls back to driving.
+    func estimate(from a: CLLocationCoordinate2D, to b: CLLocationCoordinate2D,
+                  mode preference: GettingAround = .auto) async -> TravelEstimate? {
+        let key = String(format: "%.4f,%.4f>%.4f,%.4f|", a.latitude, a.longitude, b.latitude, b.longitude) + preference.rawValue
         if let hit = cache[key] { return hit }
         let meters = CLLocation(latitude: a.latitude, longitude: a.longitude)
             .distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude))
         if meters < 80 { return nil }
 
-        let modes: [(MKDirectionsTransportType, TravelEstimate.Mode)] =
-            meters < 1500 ? [(.walking, .walk)] : [(.transit, .transit), (.automobile, .drive)]
+        let modes: [(MKDirectionsTransportType, TravelEstimate.Mode)] = switch preference {
+        case .auto: meters < 1500 ? [(.walking, .walk)] : [(.transit, .transit), (.automobile, .drive)]
+        case .drive: [(.automobile, .drive)]
+        case .transit: [(.transit, .transit), (.automobile, .drive)]
+        case .walk: [(.walking, .walk)]
+        }
         for (type, mode) in modes {
             let request = MKDirections.Request()
             request.source = MKMapItem(placemark: MKPlacemark(coordinate: a))

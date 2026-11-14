@@ -24,6 +24,8 @@ extension Color {
     /// Colors for the kinds of things on an itinerary.
     static let flight = Color.blue
     static let stay = Color.indigo
+    /// Slate, so drives read apart from Sights (teal) and Outdoors (green) on the timeline.
+    static let drive = Color(hex: 0x4E6A8E)
 }
 
 enum Metrics {

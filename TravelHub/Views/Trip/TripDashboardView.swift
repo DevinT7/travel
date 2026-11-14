@@ -12,6 +12,8 @@ struct TripDashboardView: View {
     @State private var exchangeRate: Double?
     @State private var showingAddFlight = false
     @State private var showingAddStay = false
+    @State private var showingAddDrive = false
+    @State private var editingDrive: DriveLeg?
     @State private var editingStay: Stay?
     @State private var addingActivity = false
     @State private var refreshError: String?
@@ -34,6 +36,7 @@ struct TripDashboardView: View {
                 HStack(spacing: 8) {
                     QuickAction(title: "Flight", symbol: "airplane") { showingAddFlight = true }
                     QuickAction(title: "Stay", symbol: "bed.double") { showingAddStay = true }
+                    QuickAction(title: "Drive", symbol: "car") { showingAddDrive = true }
                     QuickAction(title: "Activity", symbol: "plus") { addingActivity = true }
                     QuickAction(title: "Discover", symbol: "mappin.and.ellipse") { model.tripSection = .discover }
                 }
@@ -41,6 +44,7 @@ struct TripDashboardView: View {
 
                 VStack(alignment: .leading, spacing: 28) {
                     flightsSection
+                    drivesSection
                     upNextSection
                     staySection
                     weatherSection
@@ -68,6 +72,7 @@ struct TripDashboardView: View {
                 Menu {
                     Button("Add Flight", systemImage: "airplane") { showingAddFlight = true }
                     Button("Add Stay", systemImage: "bed.double") { showingAddStay = true }
+                    Button("Add Drive", systemImage: "car") { showingAddDrive = true }
                     Button("Add Activity", systemImage: "plus") { addingActivity = true }
                     Divider()
                     Button("Add to Calendar", systemImage: "calendar.badge.plus") { addToCalendar() }
@@ -84,6 +89,8 @@ struct TripDashboardView: View {
         .task(id: trip.id) { await keepLiveFlightsFresh() }
         .sheet(isPresented: $showingAddFlight) { AddFlightView(trip: trip) }
         .sheet(isPresented: $showingAddStay) { StayEditorView(trip: trip, stay: nil) }
+        .sheet(isPresented: $showingAddDrive) { DriveLegEditor(trip: trip, leg: nil) }
+        .sheet(item: $editingDrive) { DriveLegEditor(trip: trip, leg: $0) }
         .sheet(isPresented: $addingActivity) { PlanItemEditor(trip: trip, mode: .custom(day: nil)) }
         .sheet(item: $editingStay) { StayEditorView(trip: trip, stay: $0) }
         .alert("Couldn't refresh flights", isPresented: .init(get: { refreshError != nil }, set: { if !$0 { refreshError = nil } })) {
@@ -118,6 +125,66 @@ struct TripDashboardView: View {
                         .id("\(flight.id)-\(trackingRevision)")
                     }
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var drivesSection: some View {
+        let drives = trip.sortedDrives
+        if !drives.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader("Drives") { SeeAllButton(title: "Add") { showingAddDrive = true } }
+                LazyVGrid(columns: columns(for: drives.count), spacing: 12) {
+                    ForEach(drives) { leg in
+                        DriveCardView(leg: leg, tz: trip.timeZone,
+                                      footer: DriveActivities.canTrack(leg) ? AnyView(driveLiveRow(leg)) : nil)
+                            .contentShape(Rectangle())
+                            .onTapGesture { editingDrive = leg }
+                            .contextMenu {
+                                Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond") {
+                                    DriveService.openDirections(to: leg.to)
+                                }
+                                Button("Edit", systemImage: "pencil") { editingDrive = leg }
+                                Button("Remove Drive", systemImage: "trash", role: .destructive) {
+                                    context.delete(leg); try? context.save()
+                                    Task { await DriveActivities.syncAll() }
+                                }
+                            }
+                            .id("\(leg.id)-\(trackingRevision)")
+                    }
+                }
+            }
+        }
+    }
+
+    /// Bottom row of a drive card: shows on the Lock Screen and the CarPlay dashboard.
+    private func driveLiveRow(_ leg: DriveLeg) -> some View {
+        HStack(spacing: 8) {
+            if DriveActivities.isTracking(leg) {
+                Circle().fill(.green).frame(width: 8, height: 8)
+                Text("On Lock Screen & CarPlay").font(.subheadline.weight(.medium))
+                Spacer()
+                Button("Stop") {
+                    Task { await DriveActivities.stop(leg); trackingRevision += 1 }
+                }
+                .font(.subheadline)
+                .buttonStyle(.borderless)
+            } else {
+                Button {
+                    DriveActivities.start(leg)
+                    trackingRevision += 1
+                } label: {
+                    HStack {
+                        Label("Show on Lock Screen & CarPlay", systemImage: "car.rear.road.lane")
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.drive)
             }
         }
     }

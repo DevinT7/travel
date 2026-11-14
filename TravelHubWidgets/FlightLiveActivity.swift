@@ -6,6 +6,7 @@ import WidgetKit
 struct TravelHubWidgetsBundle: WidgetBundle {
     var body: some Widget {
         FlightLiveActivity()
+        DriveLiveActivity()
     }
 }
 
@@ -17,8 +18,9 @@ struct TravelHubWidgetsBundle: WidgetBundle {
 struct FlightLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FlightActivityAttributes.self) { context in
-            // A dark card with light text reads on any wallpaper, light or dark.
-            LockScreenFlightView(attributes: context.attributes, state: context.state, isStale: context.isStale)
+            // A dark card with light text reads on any wallpaper, light or dark. The small family is
+            // the CarPlay dashboard (iOS 26) and the Apple Watch Smart Stack.
+            FlightActivityContent(attributes: context.attributes, state: context.state, isStale: context.isStale)
                 .environment(\.colorScheme, .dark)
                 .activityBackgroundTint(Color(red: 0.06, green: 0.08, blue: 0.13).opacity(0.9))
                 .activitySystemActionForegroundColor(.white)
@@ -66,6 +68,32 @@ struct FlightLiveActivity: Widget {
                 Image(systemName: phase == .landed ? "airplane.arrival" : "airplane").foregroundStyle(.blue)
             }
             .keylineTint(.blue)
+        }
+        .supplementalActivityFamilies([.small, .medium])
+    }
+}
+
+private struct FlightActivityContent: View {
+    @Environment(\.activityFamily) private var family
+    let attributes: FlightActivityAttributes
+    let state: FlightActivityAttributes.ContentState
+    let isStale: Bool
+
+    var body: some View {
+        if family == .small {
+            let phase = FlightPhaseView.phase(state, isStale: isStale)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: phase == .landed ? "airplane.arrival" : "airplane").foregroundStyle(.blue)
+                    Text("\(attributes.fromCode) → \(attributes.toCode)").font(.headline).lineLimit(1)
+                }
+                FlightPhaseView(state: state, phase: phase, destination: attributes.toCity)
+                    .font(.caption).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            LockScreenFlightView(attributes: attributes, state: state, isStale: isStale)
         }
     }
 }

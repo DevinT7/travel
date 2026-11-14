@@ -75,6 +75,7 @@ struct RootView: View {
             switch scenePhase {
             case .active:
                 await FlightActivities.syncAll()
+                await DriveActivities.syncAll()
                 FlightBackgroundRefresh.schedule()
             case .background: FlightBackgroundRefresh.schedule()
             default: break
@@ -86,6 +87,9 @@ struct RootView: View {
         #if DEBUG && os(iOS)
         .task {
             await DebugFlightDemo.runIfRequested(context: context)
+            if let demo = await DebugDriveDemo.runIfRequested(context: context) {
+                model.open(demo, section: .plan)
+            }
             if UserDefaults.standard.string(forKey: "DemoFlight") != nil,
                let id = UserDefaults.standard.string(forKey: "selectedTripID").flatMap(UUID.init(uuidString:)) {
                 model.selectedTripID = id

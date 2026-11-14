@@ -109,6 +109,9 @@ extension Trip {
         if let s = sortedStays.first(where: { $0.checkIn > now }) {
             items.append((s.checkIn, "bed.double.fill", "Check in at \(s.name) · \(s.checkIn.weekdayDayMonth(in: timeZone))"))
         }
+        if let d = sortedDrives.first(where: { $0.departure > now }) {
+            items.append((d.departure, "car.fill", "\(d.title) · \(d.departure.weekdayDayMonth(in: timeZone)), \(d.departure.time(in: timeZone))"))
+        }
         if let p = (planItems ?? []).filter({ $0.isScheduled && $0.end > now }).min(by: { $0.start < $1.start }) {
             items.append((p.start, p.category.symbol, "\(p.title) · \(p.start.weekdayDayMonth(in: timeZone)), \(p.start.time(in: timeZone))"))
         }

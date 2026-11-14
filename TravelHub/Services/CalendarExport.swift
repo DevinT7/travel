@@ -83,6 +83,22 @@ enum CalendarExport {
             }
         }
 
+        for leg in trip.sortedDrives {
+            try save(id: leg.id) { e in
+                e.title = "🚗 \(leg.title)"
+                e.startDate = leg.departure
+                e.endDate = max(leg.arrival, leg.departure.addingTimeInterval(900))
+                e.timeZone = trip.timeZone
+                let location = EKStructuredLocation(title: leg.to.address.isEmpty ? leg.to.name : "\(leg.to.name), \(leg.to.address)")
+                location.geoLocation = CLLocation(latitude: leg.to.latitude, longitude: leg.to.longitude)
+                e.structuredLocation = location
+                e.notes = ["From \(leg.from.name)", leg.summaryText, leg.vehicle, leg.notes]
+                    .filter { !$0.isEmpty }.joined(separator: "\n")
+                // Calendar's "time to leave" alert works off the event location.
+                e.addAlarm(EKAlarm(relativeOffset: -15 * 60))
+            }
+        }
+
         if added > 0 { try store.commit() }
         UserDefaults.standard.set(Array(exported), forKey: defaultsKey)
         return added

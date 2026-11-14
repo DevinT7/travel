@@ -20,7 +20,7 @@ struct ResolvedPlace: Hashable {
 @MainActor
 @Observable
 final class LocationSearch: NSObject, MKLocalSearchCompleterDelegate {
-    enum Kind { case city, hotel }
+    enum Kind { case city, hotel, place }
 
     var query = "" { didSet { update() } }
     private(set) var results: [MKLocalSearchCompletion] = []
@@ -37,6 +37,8 @@ final class LocationSearch: NSObject, MKLocalSearchCompleterDelegate {
         case .hotel:
             completer.resultTypes = [.pointOfInterest, .address]
             completer.pointOfInterestFilter = MKPointOfInterestFilter(including: [.hotel, .campground, .rvPark])
+        case .place:
+            completer.resultTypes = [.pointOfInterest, .address]
         }
         if let region { completer.region = region }
     }
