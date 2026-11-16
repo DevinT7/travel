@@ -129,6 +129,8 @@ struct DiscoverItem: Identifiable, Hashable {
     var title: String
     var subtitle: String
     var category: DiscoverCategory
+    /// What sort of place it is ("Restaurant", "Bakery"), for filtering a category. Apple Maps only.
+    var kind: String? = nil
     var source: DiscoverSource
     var coordinate: CLLocationCoordinate2D?
     var address: String = ""

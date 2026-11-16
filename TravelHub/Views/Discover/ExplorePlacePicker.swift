@@ -13,6 +13,7 @@ struct ExplorePlacePicker: View {
     @State private var nearby: [ExplorePlace] = []
     @State private var isLoadingNearby = true
     @State private var resolving: String?
+    @State private var locationFailed = false
 
     init(trip: Trip, current: ExplorePlace?, onPick: @escaping (ExplorePlace?) -> Void) {
         self.trip = trip
@@ -36,6 +37,18 @@ struct ExplorePlacePicker: View {
                         }
                     }
                 } else {
+                    if CurrentLocation.isAvailable {
+                        Section {
+                            Button {
+                                Task { await chooseNearMe() }
+                            } label: {
+                                row("Near You",
+                                    locationFailed ? "Turn on Location Services for TravelHub in Settings."
+                                        : current?.isNearMe == true ? current!.name : "Places around where you are now",
+                                    symbol: "location.fill", isSelected: current?.isNearMe == true, isBusy: resolving == "Near You")
+                            }
+                        }
+                    }
                     Section {
                         Button {
                             choose(nil)
@@ -101,7 +114,8 @@ struct ExplorePlacePicker: View {
         Button {
             Task { await choose(place) }
         } label: {
-            row(place.name, detail, symbol: symbol, isSelected: current?.name == place.name, isBusy: resolving == place.name)
+            row(place.name, detail, symbol: symbol, isSelected: current?.isNearMe != true && current?.name == place.name,
+                isBusy: resolving == place.name)
         }
     }
 
@@ -134,6 +148,14 @@ struct ExplorePlacePicker: View {
         resolving = nil
         ExplorePlaces.remember(exact, for: trip)
         choose(exact as ExplorePlace?)
+    }
+
+    private func chooseNearMe() async {
+        resolving = "Near You"
+        let here = await ExplorePlaces.nearMe()
+        resolving = nil
+        guard let here else { locationFailed = true; return }
+        choose(here as ExplorePlace?)
     }
 
     private func pick(_ completion: MKLocalSearchCompletion) async {

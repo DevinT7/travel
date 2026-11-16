@@ -10,16 +10,22 @@ struct ExplorePlace: Codable, Hashable, Identifiable {
     var longitude: Double
     /// Nearby suggestions start with an approximate point and are moved to the city center when picked.
     var isApproximate = false
+    /// "Near you": where the phone is, not a city that was picked. Optional so saved recents still decode.
+    var isCurrentLocation: Bool?
+
+    var isNearMe: Bool { isCurrentLocation == true }
 
     var id: String { "\(name)|\((latitude * 100).rounded())|\((longitude * 100).rounded())" }
     var coordinate: CLLocationCoordinate2D { .init(latitude: latitude, longitude: longitude) }
 
-    init(name: String, subtitle: String, coordinate: CLLocationCoordinate2D, isApproximate: Bool = false) {
+    init(name: String, subtitle: String, coordinate: CLLocationCoordinate2D, isApproximate: Bool = false,
+         isCurrentLocation: Bool = false) {
         self.name = name
         self.subtitle = subtitle
         self.latitude = coordinate.latitude
         self.longitude = coordinate.longitude
         self.isApproximate = isApproximate
+        self.isCurrentLocation = isCurrentLocation ? true : nil
     }
 
     func distance(from c: CLLocationCoordinate2D) -> CLLocationDistance {
@@ -29,6 +35,16 @@ struct ExplorePlace: Codable, Hashable, Identifiable {
 
 @MainActor
 enum ExplorePlaces {
+    // MARK: Where you are
+
+    /// The spot the phone is at, named after its neighborhood ("Belltown"). nil when location is off.
+    static func nearMe() async -> ExplorePlace? {
+        guard let c = await CurrentLocation.fetch(timeout: .seconds(8)) else { return nil }
+        let described = await CurrentLocation.describe(c)
+        let name = described.name == "Starting point" ? "Your Location" : described.name
+        return ExplorePlace(name: name, subtitle: described.address, coordinate: c, isCurrentLocation: true)
+    }
+
     // MARK: Nearby cities
 
     private static var nearbyCache: [String: [ExplorePlace]] = [:]

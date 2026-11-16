@@ -84,6 +84,13 @@ extension Trip {
     }
 
     /// Each calendar day of the trip, as the start of that day in the destination time zone.
+    /// Today falls between the first and last day of the trip, in the destination's time zone.
+    var isUnderway: Bool {
+        let cal = calendar
+        let today = cal.startOfDay(for: .now)
+        return today >= cal.startOfDay(for: startDate) && today <= cal.startOfDay(for: endDate)
+    }
+
     var days: [Date] {
         let cal = calendar
         let start = cal.startOfDay(for: startDate)

@@ -37,6 +37,10 @@ final class DiscoverModel {
     private static var cache: [String: DiscoverModel] = [:]
     /// The city each trip was last exploring in Discover (nil: the destination).
     static var lastPlace: [UUID: ExplorePlace] = [:]
+    /// Trips where Discover has already tried starting near the person this session.
+    static var triedNearMe: Set<UUID> = []
+    /// Trips where the person picked a place themselves, so Discover stops choosing for them.
+    static var pickedByHand: Set<UUID> = []
 
     static func cached(trip: Trip, place: ExplorePlace?) -> DiscoverModel {
         let center = place?.coordinate ?? trip.sortedStays.first?.coordinate ?? trip.coordinate

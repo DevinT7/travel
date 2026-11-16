@@ -23,7 +23,7 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>While you're driving to a stop, TravelHub uses your location to keep your arrival time up to date on the Lock Screen and in CarPlay.</string>
+	<string>TravelHub uses your location to show restaurants, sights and things to do near you, and while you're driving to a stop, to keep your arrival time up to date on the Lock Screen and in CarPlay.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

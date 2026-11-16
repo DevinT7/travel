@@ -11,19 +11,37 @@ struct DiscoverView: View {
     @State private var selectedCategory: DiscoverCategory?
     @State private var query = ""
     @State private var openedItem: DiscoverItem?
-    @State private var showMap = false
+    @State private var layout: PlaceLayout = .cards
+    /// "Restaurant", "Bakery"…: narrows a category to one kind of place. Nil shows them all.
+    @State private var kindFilter: String?
+    @State private var nearestFirst = false
     /// Another city to browse instead of the destination (a day trip or the next stop).
     @State private var exploring: ExplorePlace?
     @State private var showingPlacePicker = false
+    /// Waiting for a location fix before loading anything, so results don't load twice.
+    @State private var locating: Bool
 
     init(trip: Trip) {
         self.trip = trip
         let place = DiscoverModel.lastPlace[trip.id]
         _exploring = State(initialValue: place)
         _model = State(initialValue: DiscoverModel.cached(trip: trip, place: place))
+        _locating = State(initialValue: place == nil && Self.shouldTryNearMe(trip))
+    }
+
+    /// Start near the person rather than the destination the first time Discover opens, if they might
+    /// be there: always while the trip is on (prompting for location if needed), otherwise only when
+    /// location is already allowed, to check whether they're in the area.
+    private static func shouldTryNearMe(_ trip: Trip) -> Bool {
+        guard CurrentLocation.isAvailable, !DiscoverModel.triedNearMe.contains(trip.id),
+              !DiscoverModel.pickedByHand.contains(trip.id) else { return false }
+        return trip.isUnderway || CurrentLocation.isAuthorized
     }
 
     private var placeName: String { exploring?.name ?? trip.destinationName }
+    private var isNearMe: Bool { exploring?.isNearMe == true }
+    /// "near you" or "near Seattle", for counts and empty states.
+    private var nearText: String { isNearMe ? "near you" : "near \(placeName)" }
 
     private var savedIDs: Set<String> { Set((trip.planItems ?? []).compactMap(\.sourceID)) }
 
@@ -33,7 +51,9 @@ struct DiscoverView: View {
                 placeBar
                 categories
                 Group {
-                    if !query.isEmpty {
+                    if locating {
+                        locatingPlaceholder
+                    } else if !query.isEmpty {
                         searchResults
                     } else if let selectedCategory {
                         categoryPage(selectedCategory)
@@ -54,7 +74,8 @@ struct DiscoverView: View {
         .background(Color.appBackground)
         .navigationTitle(trip.displayName)
         .largeTitle()
-        .searchable(text: $query, prompt: "Search places in \(placeName)")
+        .searchable(text: $query, prompt: isNearMe ? "Search places near you" : "Search places in \(placeName)")
+        .task { await startNearMe() }
         .onSubmit(of: .search) { Task { await model.search(query) } }
         .task(id: query) {
             // Debounced type-ahead search.
@@ -79,9 +100,19 @@ struct DiscoverView: View {
                 showingPlacePicker = true
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: exploring == nil ? "location.fill" : "location.magnifyingglass")
-                        .foregroundStyle(.tint)
-                    Text("Near \(placeName)").fontWeight(.semibold).lineLimit(1)
+                    if locating {
+                        ProgressView().controlSize(.small)
+                        Text("Finding your location…").fontWeight(.semibold).lineLimit(1)
+                    } else {
+                        Image(systemName: isNearMe ? "location.fill" : exploring == nil ? "suitcase.fill" : "location.magnifyingglass")
+                            .foregroundStyle(.tint)
+                        if isNearMe {
+                            Text("Near You").fontWeight(.semibold)
+                            Text(placeName).foregroundStyle(.secondary).lineLimit(1)
+                        } else {
+                            Text("Near \(placeName)").fontWeight(.semibold).lineLimit(1)
+                        }
+                    }
                     Image(systemName: "chevron.down").font(.caption.weight(.bold)).foregroundStyle(.secondary)
                 }
                 .font(.subheadline)
@@ -93,7 +124,7 @@ struct DiscoverView: View {
             .buttonStyle(.plain)
             .accessibilityHint("Explore another city")
 
-            if exploring != nil {
+            if exploring != nil, !isNearMe {
                 Button {
                     explore(nil)
                 } label: {
@@ -108,7 +139,8 @@ struct DiscoverView: View {
         .padding(.horizontal, Metrics.gutter)
     }
 
-    private func explore(_ place: ExplorePlace?) {
+    private func explore(_ place: ExplorePlace?, byHand: Bool = true) {
+        if byHand { DiscoverModel.pickedByHand.insert(trip.id) }
         withAnimation(.snappy) {
             exploring = place
             DiscoverModel.lastPlace[trip.id] = place
@@ -117,22 +149,56 @@ struct DiscoverView: View {
         }
     }
 
+    /// The first time Discover opens for a trip, switch to "Near You" if the person is on the trip or
+    /// already in the area. While showing "Near You", catch up if they've moved since.
+    private func startNearMe() async {
+        if isNearMe, let current = exploring {
+            guard let here = await ExplorePlaces.nearMe(), here.distance(from: current.coordinate) > 1000 else { return }
+            explore(here, byHand: false)
+            return
+        }
+        guard locating else { return }
+        DiscoverModel.triedNearMe.insert(trip.id)
+        let here = await ExplorePlaces.nearMe()
+        if let here, !DiscoverModel.pickedByHand.contains(trip.id),
+           trip.isUnderway || here.distance(from: trip.coordinate) < 100_000 {
+            explore(here, byHand: false)
+        }
+        withAnimation(.snappy) { locating = false }
+    }
+
+    private var locatingPlaceholder: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous)
+                .fill(Color.cardBackground).frame(height: 230)
+            LazyVGrid(columns: photoColumns, spacing: 12) { ForEach(0..<4, id: \.self) { _ in PlaceholderCard() } }
+        }
+        .accessibilityLabel("Finding places near you")
+    }
+
     // MARK: Category circles
 
     private var categories: some View {
         HorizontalScroller {
             HStack(spacing: 6) {
                 CategoryCircle(title: "For You", symbol: "sparkles", color: .accentColor, isSelected: selectedCategory == nil) {
-                    withAnimation(.snappy) { selectedCategory = nil }
+                    select(nil)
                 }
                 ForEach(DiscoverCategory.browsable) { c in
                     CategoryCircle(title: c.title, symbol: c.symbol, color: c.color, isSelected: selectedCategory == c) {
-                        withAnimation(.snappy) { selectedCategory = c }
+                        select(c)
                     }
                 }
             }
             .padding(.horizontal, Metrics.gutter - 4)
             .padding(.vertical, 4)
+        }
+    }
+
+    private func select(_ category: DiscoverCategory?) {
+        withAnimation(.snappy) {
+            selectedCategory = category
+            kindFilter = nil
         }
     }
 
@@ -151,23 +217,22 @@ struct DiscoverView: View {
         }
     }
 
-    /// Apple Maps results have no photos, so they use list rows instead of photo cards.
-    private func usesPhotos(_ category: DiscoverCategory) -> Bool { category == .sights || category == .events }
-
     private var featuredID: String? { model.state(for: .sights).items.first(where: { $0.imageURL != nil })?.id }
 
+    /// A row of photo cards per category. Apple Maps places have no photos of their own, so their
+    /// cards show the Look Around street view of the place instead.
     private func section(_ category: DiscoverCategory) -> some View {
         let state = model.state(for: category)
         let items = state.items.filter { $0.id != featuredID }
         return VStack(alignment: .leading, spacing: 12) {
             SectionHeader(category.headline) {
                 if !state.items.isEmpty {
-                    SeeAllButton { withAnimation(.snappy) { selectedCategory = category } }
+                    SeeAllButton { select(category) }
                 }
             }
             if let error = state.error {
                 unavailable(category, error)
-            } else if usesPhotos(category) {
+            } else {
                 HorizontalScroller {
                     LazyHStack(spacing: 12) {
                         if items.isEmpty {
@@ -183,10 +248,6 @@ struct DiscoverView: View {
                 }
                 .scrollTargetBehavior(.viewAligned)
                 .scrollClipDisabled()
-            } else if items.isEmpty {
-                RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).fill(Color.cardBackground).frame(height: 180)
-            } else {
-                placeList(Array(items.prefix(4)))
             }
         }
         .task { await model.load(category) }
@@ -199,16 +260,40 @@ struct DiscoverView: View {
 
     // MARK: Single category
 
+    enum PlaceLayout: String, CaseIterable, Identifiable {
+        case cards, list, map
+        var id: String { rawValue }
+        var title: String { rawValue.capitalized }
+        var symbol: String {
+            switch self {
+            case .cards: "square.grid.2x2"
+            case .list: "list.bullet"
+            case .map: "map"
+            }
+        }
+    }
+
     private let photoColumns = [GridItem(.adaptive(minimum: 160), spacing: 12, alignment: .top)]
+
+    /// The kinds of place in a category, most common first, when there's more than one to choose from.
+    private func kinds(in items: [DiscoverItem]) -> [String] {
+        let counts = Dictionary(grouping: items.compactMap(\.kind), by: { $0 }).mapValues(\.count)
+        guard counts.count > 1 else { return [] }
+        return counts.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map(\.key)
+    }
+
+    private func shown(_ items: [DiscoverItem]) -> [DiscoverItem] {
+        let filtered = kindFilter.map { k in items.filter { $0.kind == k } } ?? items
+        guard nearestFirst else { return filtered }
+        return filtered.sorted { (model.distance(to: $0) ?? .infinity) < (model.distance(to: $1) ?? .infinity) }
+    }
 
     private func categoryPage(_ category: DiscoverCategory) -> some View {
         let state = model.state(for: category)
+        let items = shown(state.items)
         return VStack(alignment: .leading, spacing: 14) {
-            Picker("View", selection: $showMap) {
-                Text("List").tag(false)
-                Text("Map").tag(true)
-            }
-            .pickerStyle(.segmented)
+            categoryHeader(category, count: items.count, loaded: !state.items.isEmpty)
+            kindChips(kinds(in: state.items), color: category.color)
 
             if let error = state.error {
                 unavailable(category, error)
@@ -216,23 +301,91 @@ struct DiscoverView: View {
                 LazyVGrid(columns: photoColumns, spacing: 12) { ForEach(0..<6, id: \.self) { _ in PlaceholderCard() } }
             } else if state.items.isEmpty, case .loaded = state {
                 EmptyStateView(symbol: category.symbol, title: "Nothing found",
-                               message: "No \(category.title.lowercased()) found near \(placeName).")
-            } else if showMap {
-                DiscoverMapView(items: state.items, onOpen: { openedItem = $0 })
-                    .frame(height: 520)
-                    .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-            } else if usesPhotos(category) {
-                LazyVGrid(columns: photoColumns, spacing: 12) {
-                    ForEach(state.items) { item in
-                        DiscoverCard(item: item, distance: model.distance(to: item), isSaved: savedIDs.contains(item.id),
-                                     onOpen: { openedItem = item }, onToggleSave: { toggleSave(item) })
-                    }
-                }
+                               message: "No \(category.title.lowercased()) found \(nearText).")
             } else {
-                placeList(state.items)
+                switch layout {
+                case .cards: cardGrid(items, category: category)
+                case .list: placeList(items)
+                case .map:
+                    DiscoverMapView(items: items, distance: { model.distance(to: $0) }, onOpen: { openedItem = $0 })
+                        .frame(height: 560)
+                        .clipShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+                        .id(kindFilter ?? "all")
+                }
             }
         }
         .task(id: category) { await model.load(category) }
+    }
+
+    /// "Where to eat · 25 places", then sort and Cards / List / Map.
+    private func categoryHeader(_ category: DiscoverCategory, count: Int, loaded: Bool) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(category.headline).font(.title2.bold())
+                Text(loaded ? "\(count) place\(count == 1 ? "" : "s") \(nearText)" : "Looking \(nearText)…")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Menu {
+                Picker("Sort", selection: $nearestFirst) {
+                    Label("Best Match", systemImage: "star").tag(false)
+                    Label("Nearest", systemImage: "location").tag(true)
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 34, height: 34)
+                    .background(Color.cardBackground, in: Circle())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Sort")
+            Picker("View", selection: $layout.animation(.snappy)) {
+                ForEach(PlaceLayout.allCases) { l in
+                    Image(systemName: l.symbol).accessibilityLabel(l.title).tag(l)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+        }
+        .padding(.horizontal, 4)
+    }
+
+    @ViewBuilder
+    private func kindChips(_ kinds: [String], color: Color) -> some View {
+        if !kinds.isEmpty {
+            HorizontalScroller {
+                HStack(spacing: 8) {
+                    FilterChip(title: "All", isSelected: kindFilter == nil, color: color) {
+                        withAnimation(.snappy) { kindFilter = nil }
+                    }
+                    ForEach(kinds, id: \.self) { kind in
+                        FilterChip(title: kind, isSelected: kindFilter == kind, color: color) {
+                            withAnimation(.snappy) { kindFilter = kindFilter == kind ? nil : kind }
+                        }
+                    }
+                }
+                .padding(.horizontal, Metrics.gutter)
+            }
+            .padding(.horizontal, -Metrics.gutter)
+        }
+    }
+
+    /// One big card up top, then a two-column grid of photo cards.
+    @ViewBuilder
+    private func cardGrid(_ items: [DiscoverItem], category: DiscoverCategory) -> some View {
+        if let first = items.first {
+            FeaturedCard(item: first, distance: model.distance(to: first), isSaved: savedIDs.contains(first.id),
+                         label: nearestFirst ? "Closest" : "Best match", height: 230,
+                         onOpen: { openedItem = first }, onToggleSave: { toggleSave(first) })
+        }
+        LazyVGrid(columns: photoColumns, spacing: 12) {
+            ForEach(items.dropFirst()) { item in
+                DiscoverCard(item: item, distance: model.distance(to: item), isSaved: savedIDs.contains(item.id),
+                             photoHeight: 130, onOpen: { openedItem = item }, onToggleSave: { toggleSave(item) })
+            }
+        }
     }
 
     // MARK: Search

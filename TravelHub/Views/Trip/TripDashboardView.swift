@@ -20,6 +20,10 @@ struct TripDashboardView: View {
     @State private var calendarMessage: String?
     /// Bumped when a Live Activity starts or stops, so the Track buttons redraw.
     @State private var trackingRevision = 0
+    /// A flight or drive opened from the Travel list.
+    @State private var openedLeg: TravelLeg?
+    @State private var editingDriveInSheet: DriveLeg?
+    @State private var showingEarlier = false
 
     private let columns = [GridItem(.adaptive(minimum: 340), spacing: 12, alignment: .top)]
 
@@ -43,8 +47,7 @@ struct TripDashboardView: View {
                 .padding(.top, -6)
 
                 VStack(alignment: .leading, spacing: 28) {
-                    flightsSection
-                    drivesSection
+                    travelSection
                     upNextSection
                     staySection
                     weatherSection
@@ -93,6 +96,7 @@ struct TripDashboardView: View {
         .sheet(item: $editingDrive) { DriveLegEditor(trip: trip, leg: $0) }
         .sheet(isPresented: $addingActivity) { PlanItemEditor(trip: trip, mode: .custom(day: nil)) }
         .sheet(item: $editingStay) { StayEditorView(trip: trip, stay: $0) }
+        .sheet(item: $openedLeg) { legSheet($0) }
         .alert("Couldn't refresh flights", isPresented: .init(get: { refreshError != nil }, set: { if !$0 { refreshError = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(refreshError ?? "") }
@@ -100,61 +104,236 @@ struct TripDashboardView: View {
 
     // MARK: Sections
 
+    /// Flights and drives in one place, in order. The next one gets the full card (live status,
+    /// Track, Start Drive); later ones are one-line rows that open the full card; finished ones
+    /// fold away under "Earlier" so they don't push today's plans down the page.
     @ViewBuilder
-    private var flightsSection: some View {
-        if !trip.sortedFlights.isEmpty {
+    private var travelSection: some View {
+        let legs = trip.travelLegs
+        if !legs.isEmpty {
+            let now = Date.now
+            let upcoming = legs.filter { $0.end > now }
+            let earlier = legs.filter { $0.end <= now }
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeader("Flights") { SeeAllButton(title: "Add") { showingAddFlight = true } }
-                RouteMapCard(trip: trip)
-                LazyVGrid(columns: columns(for: trip.sortedFlights.count), spacing: 12) {
-                    ForEach(trip.sortedFlights) { flight in
-                        FlightCardView(flight: flight,
-                                       footer: FlightActivities.canTrack(flight) ? AnyView(liveRow(flight)) : nil)
-                            .contextMenu {
-                                Button("Refresh Status", systemImage: "arrow.clockwise") {
-                                    Task { await refresh(flight) }
-                                }
-                                if FlightActivities.canTrack(flight) {
-                                    trackButton(flight)
-                                }
-                                Button("Remove Flight", systemImage: "trash", role: .destructive) {
-                                    context.delete(flight); try? context.save()
-                                    Task { await FlightActivities.syncAll() }
-                                }
+                SectionHeader("Travel") {
+                    Menu("Add") {
+                        Button("Flight", systemImage: "airplane") { showingAddFlight = true }
+                        Button("Drive", systemImage: "car") { showingAddDrive = true }
+                    }
+                    .menuStyle(.button)
+                    .fixedSize()
+                    .foregroundStyle(.tint)
+                }
+                if let next = upcoming.first {
+                    upNextLabel(next)
+                    if case .flight(let flight) = next, FlightProgress.fraction(of: flight) != nil {
+                        RouteMapCard(flights: [flight])
+                    }
+                    fullCard(next, inSheet: false)
+                }
+                let later = Array(upcoming.dropFirst())
+                if !later.isEmpty {
+                    legList(later)
+                }
+                if !earlier.isEmpty {
+                    if upcoming.isEmpty {
+                        legList(earlier)
+                    } else {
+                        Button {
+                            withAnimation(.snappy) { showingEarlier.toggle() }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(showingEarlier ? "Hide earlier" : "Earlier · \(earlier.count)")
+                                Image(systemName: "chevron.down")
+                                    .font(.caption.weight(.bold))
+                                    .rotationEffect(.degrees(showingEarlier ? 180 : 0))
                             }
-                        .id("\(flight.id)-\(trackingRevision)")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if showingEarlier {
+                            legList(earlier).opacity(0.75)
+                        }
                     }
                 }
             }
         }
     }
 
+    /// "UP NEXT  Tomorrow" / "IN THE AIR" above the featured card.
+    private func upNextLabel(_ leg: TravelLeg) -> some View {
+        let now = Date.now
+        let underway = leg.start <= now
+        let title: String = underway ? (leg.isFlight ? "In the air" : "On the road") : "Up next"
+        var when = ""
+        if !underway {
+            let cal = trip.calendar
+            let hours = leg.start.timeIntervalSince(now) / 3600
+            if hours < 12 {
+                let minutes = Int(leg.start.timeIntervalSince(now) / 60)
+                when = minutes < 60 ? "in \(max(minutes, 1)) min"
+                    : minutes % 60 == 0 ? "in \(minutes / 60)h" : "in " + leg.start.timeIntervalSince(now).hoursMinutes
+            } else if cal.isDate(leg.start, inSameDayAs: now) {
+                when = "Today"
+            } else if let tomorrow = cal.date(byAdding: .day, value: 1, to: now), cal.isDate(leg.start, inSameDayAs: tomorrow) {
+                when = "Tomorrow"
+            } else {
+                when = leg.start.weekdayDayMonth(in: trip.timeZone)
+            }
+        }
+        return HStack(spacing: 8) {
+            if underway { Circle().fill(.green).frame(width: 8, height: 8) }
+            Text(title.uppercased()).font(.caption.weight(.bold)).foregroundStyle(underway ? Color.green : Color.accentColor)
+            if !when.isEmpty { Text(when).font(.caption.weight(.medium)).foregroundStyle(.secondary) }
+        }
+        .padding(.horizontal, 4)
+        .padding(.bottom, -4)
+    }
+
+    /// The full flight or drive card with its live controls.
     @ViewBuilder
-    private var drivesSection: some View {
-        let drives = trip.sortedDrives
-        if !drives.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeader("Drives") { SeeAllButton(title: "Add") { showingAddDrive = true } }
-                LazyVGrid(columns: columns(for: drives.count), spacing: 12) {
-                    ForEach(drives) { leg in
-                        DriveCardView(leg: leg, tz: trip.timeZone,
-                                      footer: Self.offersStartDrive ? AnyView(driveLiveRow(leg)) : nil)
-                            .contentShape(Rectangle())
-                            .onTapGesture { editingDrive = leg }
-                            .contextMenu {
-                                Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond") {
-                                    DriveService.openDirections(to: leg.to)
-                                }
-                                Button("Edit", systemImage: "pencil") { editingDrive = leg }
-                                Button("Remove Drive", systemImage: "trash", role: .destructive) {
-                                    context.delete(leg); try? context.save()
-                                    Task { await DriveActivities.syncAll() }
-                                }
-                            }
-                            .id("\(leg.id)-\(trackingRevision)")
+    private func fullCard(_ leg: TravelLeg, inSheet: Bool) -> some View {
+        switch leg {
+        case .flight(let flight):
+            FlightCardView(flight: flight, footer: FlightActivities.canTrack(flight) ? AnyView(liveRow(flight)) : nil)
+                .contextMenu {
+                    Button("Refresh Status", systemImage: "arrow.clockwise") { Task { await refresh(flight) } }
+                    if FlightActivities.canTrack(flight) { trackButton(flight) }
+                    Button("Remove Flight", systemImage: "trash", role: .destructive) { remove(.flight(flight)) }
+                }
+                .id("\(flight.id)-\(trackingRevision)")
+        case .drive(let drive):
+            DriveCardView(leg: drive, tz: trip.timeZone,
+                          footer: Self.offersStartDrive ? AnyView(driveLiveRow(drive)) : nil)
+                .contentShape(Rectangle())
+                .onTapGesture { if inSheet { editingDriveInSheet = drive } else { editingDrive = drive } }
+                .contextMenu {
+                    Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond") {
+                        DriveService.openDirections(to: drive.to)
                     }
+                    Button("Edit", systemImage: "pencil") {
+                        if inSheet { editingDriveInSheet = drive } else { editingDrive = drive }
+                    }
+                    Button("Remove Drive", systemImage: "trash", role: .destructive) { remove(.drive(drive)) }
+                }
+                .id("\(drive.id)-\(trackingRevision)")
+        }
+    }
+
+    /// One-line rows in a single card; tapping one opens its full card.
+    private func legList(_ legs: [TravelLeg]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(legs.enumerated()), id: \.element.id) { index, leg in
+                Button { openedLeg = leg } label: { legRow(leg) }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Remove", systemImage: "trash", role: .destructive) { remove(leg) }
+                    }
+                if index < legs.count - 1 { Divider().padding(.leading, 62) }
+            }
+        }
+        .padding(.vertical, 4)
+        .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+    }
+
+    private func legRow(_ leg: TravelLeg) -> some View {
+        let (title, detail, time, day): (String, String, String, String) = switch leg {
+        case .flight(let f):
+            ("\(f.departure.city.isEmpty ? f.departure.iata : f.departure.city) → \(f.arrival.city.isEmpty ? f.arrival.iata : f.arrival.city)",
+             [f.flightNumber, f.duration.hoursMinutes].filter { !$0.isEmpty }.joined(separator: " · "),
+             f.departure.best.time(in: f.departure.timeZone), f.departure.best.weekdayDayMonth(in: f.departure.timeZone))
+        case .drive(let d):
+            (d.title,
+             [d.from.name.isEmpty ? nil : "From \(d.from.name)", d.summaryText.isEmpty ? nil : d.summaryText]
+                .compactMap { $0 }.joined(separator: " · "),
+             d.departure.time(in: trip.timeZone), d.departure.weekdayDayMonth(in: trip.timeZone))
+        }
+        return HStack(spacing: 12) {
+            CircleIcon(symbol: leg.isFlight ? "airplane" : "car.fill", color: leg.isFlight ? .flight : .drive, size: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                if !detail.isEmpty { Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(time).font(.subheadline.weight(.semibold)).monospacedDigit()
+                Text(day).font(.caption).foregroundStyle(.secondary)
+            }
+            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.vertical, 11)
+        .contentShape(Rectangle())
+    }
+
+    /// A flight or drive from the list, with its full card and actions.
+    private func legSheet(_ leg: TravelLeg) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    if case .flight(let flight) = leg { RouteMapCard(flights: [flight]) }
+                    fullCard(leg, inSheet: true)
+                    VStack(spacing: 0) {
+                        switch leg {
+                        case .flight(let flight):
+                            sheetAction("Refresh Status", "arrow.clockwise") { Task { await refresh(flight) } }
+                        case .drive(let drive):
+                            sheetAction("Directions", "arrow.triangle.turn.up.right.diamond") { DriveService.openDirections(to: drive.to) }
+                            Divider().padding(.leading, 52)
+                            sheetAction("Edit Drive", "pencil") { editingDriveInSheet = drive }
+                        }
+                        Divider().padding(.leading, 52)
+                        sheetAction(leg.isFlight ? "Remove Flight" : "Remove Drive", "trash", role: .destructive) { remove(leg) }
+                    }
+                    .padding(.vertical, 4)
+                    .background(Color.cardBackground, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+                }
+                .padding(Metrics.gutter)
+            }
+            .background(Color.appBackground)
+            .navigationTitle(leg.isFlight ? "Flight" : "Drive")
+            .inlineTitle()
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { openedLeg = nil }
                 }
             }
+            .sheet(item: $editingDriveInSheet) { DriveLegEditor(trip: trip, leg: $0) }
+        }
+        .presentationDetents([.medium, .large])
+        #if os(macOS)
+        .frame(minWidth: 480, idealWidth: 520, minHeight: 520)
+        #endif
+    }
+
+    private func sheetAction(_ title: String, _ symbol: String, role: ButtonRole? = nil, action: @escaping () -> Void) -> some View {
+        Button(role: role, action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol).frame(width: 24)
+                Text(title)
+                Spacer()
+            }
+            .font(.body)
+            .foregroundStyle(role == .destructive ? Color.red : Color.primary)
+            .padding(.horizontal, Metrics.gutter)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func remove(_ leg: TravelLeg) {
+        if openedLeg?.id == leg.id { openedLeg = nil }
+        switch leg {
+        case .flight(let flight):
+            context.delete(flight); try? context.save()
+            Task { await FlightActivities.syncAll() }
+        case .drive(let drive):
+            context.delete(drive); try? context.save()
+            Task { await DriveActivities.syncAll() }
         }
     }
 
@@ -393,4 +572,41 @@ struct TripDashboardView: View {
         }
     }
 
+}
+
+/// A flight or a drive: the ways of getting between places on a trip.
+enum TravelLeg: Identifiable {
+    case flight(FlightSegment)
+    case drive(DriveLeg)
+
+    var id: UUID {
+        switch self {
+        case .flight(let f): f.id
+        case .drive(let d): d.id
+        }
+    }
+
+    var isFlight: Bool { if case .flight = self { true } else { false } }
+
+    var start: Date {
+        switch self {
+        case .flight(let f): f.departure.best
+        case .drive(let d): d.departure
+        }
+    }
+
+    /// When it's over. A drive whose route hasn't been looked up yet counts as an hour long.
+    var end: Date {
+        switch self {
+        case .flight(let f): f.arrival.best
+        case .drive(let d): max(d.arrival, d.departure.addingTimeInterval(3600))
+        }
+    }
+}
+
+extension Trip {
+    /// Flights and drives together, in the order they happen.
+    var travelLegs: [TravelLeg] {
+        (sortedFlights.map(TravelLeg.flight) + sortedDrives.map(TravelLeg.drive)).sorted { $0.start < $1.start }
+    }
 }

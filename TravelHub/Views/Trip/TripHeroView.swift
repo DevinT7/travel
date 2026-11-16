@@ -46,9 +46,9 @@ struct TripHeroView: View {
     }
 }
 
-/// The flight routes on a map, drawn as great-circle arcs.
+/// Flight routes on a map, drawn as great-circle arcs, with the plane where it is now.
 struct RouteMapCard: View {
-    let trip: Trip
+    let flights: [FlightSegment]
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { _ in map }
@@ -56,7 +56,7 @@ struct RouteMapCard: View {
 
     private var map: some View {
         Map(initialPosition: .automatic, interactionModes: [.pan, .zoom]) {
-            ForEach(trip.sortedFlights) { flight in
+            ForEach(flights) { flight in
                 MapPolyline(coordinates: [flight.departure.coordinate, flight.arrival.coordinate], contourStyle: .geodesic)
                     .stroke(Color.flight, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [1, 6]))
                 Annotation(flight.departure.iata, coordinate: flight.departure.coordinate, anchor: .center) { dot }

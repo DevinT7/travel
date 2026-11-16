@@ -13,6 +13,18 @@ enum CurrentLocation {
         #endif
     }
 
+    /// Location is already allowed, so asking for a fix won't show a permission prompt.
+    static var isAuthorized: Bool {
+        #if os(iOS)
+        switch CLLocationManager().authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways: true
+        default: false
+        }
+        #else
+        false
+        #endif
+    }
+
     /// One fresh fix, asking for "While Using" permission the first time. nil when location is off,
     /// denied, or nothing arrives within `timeout`.
     static func fetch(timeout: Duration = .seconds(10)) async -> CLLocationCoordinate2D? {

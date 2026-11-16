@@ -34,11 +34,15 @@ struct MapKitPlacesProvider {
         let area = placemark.subLocality ?? placemark.locality ?? ""
         let kind = mapItem.pointOfInterestCategory.map(Self.displayName) ?? category.title
         let identifier = mapItem.identifier?.rawValue
+        let id = identifier ?? "mk-\(placemark.coordinate.latitude),\(placemark.coordinate.longitude)-\(mapItem.name ?? "")"
+        // Kept so the card's Look Around picture can face this exact place.
+        MapItemCache.shared.setObject(mapItem, forKey: id as NSString)
         return DiscoverItem(
-            id: identifier ?? "mk-\(placemark.coordinate.latitude),\(placemark.coordinate.longitude)-\(mapItem.name ?? "")",
+            id: id,
             title: mapItem.name ?? "Unnamed place",
             subtitle: [kind, area].filter { !$0.isEmpty }.joined(separator: " · "),
             category: category,
+            kind: kind,
             source: .appleMaps,
             coordinate: placemark.coordinate,
             address: Self.address(placemark),
