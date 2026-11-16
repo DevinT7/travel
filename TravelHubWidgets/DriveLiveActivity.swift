@@ -31,11 +31,12 @@ struct DriveLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 0) {
-                        Text(DriveText.duration(s.minutes))
+                        Text(DriveText.duration(s.remainingMinutes ?? s.minutes))
                             .font(.system(.title3, design: .rounded).weight(.bold))
                             .monospacedDigit()
-                        if !s.distanceText.isEmpty {
-                            Text(s.distanceText).font(.caption).foregroundStyle(.secondary)
+                        let distance = s.remainingText ?? s.distanceText
+                        if !distance.isEmpty {
+                            Text(phase == .live ? "\(distance) left" : distance).font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     .padding(.trailing, 6)
@@ -50,9 +51,9 @@ struct DriveLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(spacing: 10) {
                         HStack(spacing: 10) {
-                            TimeColumn(label: "Leave", time: s.leaveAt, tz: tz, alignment: .leading)
+                            TimeColumn(label: s.isLive ? "Started" : "Leave", time: s.leaveAt, tz: tz, alignment: .leading)
                             DriveRouteLine(state: s, phase: phase)
-                            TimeColumn(label: "Arrive", time: s.arriveAt, tz: tz, alignment: .trailing)
+                            ArriveColumn(state: s, phase: phase, tz: tz)
                         }
                         // Centered: the island's bottom corners curve in and clip leading text.
                         DriveStatusLine(state: s, phase: phase, tz: tz)
@@ -66,7 +67,7 @@ struct DriveLiveActivity: Widget {
             } compactLeading: {
                 Image(systemName: "car.fill").foregroundStyle(driveColor)
             } compactTrailing: {
-                DriveCompactCountdown(state: s, phase: phase).foregroundStyle(driveColor)
+                DriveCompactCountdown(state: s, phase: phase, tz: tz).foregroundStyle(driveColor)
             } minimal: {
                 Image(systemName: "car.fill").foregroundStyle(driveColor)
             }
@@ -105,15 +106,15 @@ private struct DriveActivityContent: View {
                         .frame(width: 22, height: 22).background(driveColor, in: Circle())
                     Text("Drive to \(attributes.toName)").font(.subheadline.weight(.semibold)).lineLimit(1)
                     Spacer(minLength: 4)
-                    Text(DriveText.summary(state))
+                    Text(DriveText.pill(state, phase: DrivePhase(state, isStale: isStale)))
                         .font(.caption.weight(.semibold)).foregroundStyle(driveColor)
                         .padding(.horizontal, 8).padding(.vertical, 3)
                         .background(driveColor.opacity(0.18), in: Capsule())
                 }
                 HStack(spacing: 10) {
-                    TimeColumn(label: "Leave", time: state.leaveAt, tz: tz, alignment: .leading)
+                    TimeColumn(label: state.isLive ? "Started" : "Leave", time: state.leaveAt, tz: tz, alignment: .leading)
                     DriveRouteLine(state: state, phase: DrivePhase(state, isStale: isStale))
-                    TimeColumn(label: "Arrive", time: state.arriveAt, tz: tz, alignment: .trailing)
+                    ArriveColumn(state: state, phase: DrivePhase(state, isStale: isStale), tz: tz)
                 }
                 HStack {
                     DriveStatusLine(state: state, phase: DrivePhase(state, isStale: isStale), tz: tz, alignment: .leading)
@@ -133,26 +134,48 @@ private struct TimeColumn: View {
     let time: Date
     let tz: TimeZone
     let alignment: HorizontalAlignment
+    var color: Color = .primary
 
     var body: some View {
         VStack(alignment: alignment, spacing: 1) {
             Text(label).font(.caption2).foregroundStyle(.secondary)
             Text(time.formatted(Date.FormatStyle(date: .omitted, time: .shortened, timeZone: tz)))
                 .font(.system(.title3, design: .rounded).weight(.bold))
+                .foregroundStyle(color)
                 .monospacedDigit()
         }
         .fixedSize()
     }
 }
 
+/// "Arrive" from the plan, or the live "ETA" (orange when it's later than planned).
+private struct ArriveColumn: View {
+    let state: DriveActivityAttributes.ContentState
+    let phase: DrivePhase
+    let tz: TimeZone
+
+    var body: some View {
+        if phase == .live, let eta = state.etaAt {
+            TimeColumn(label: "ETA", time: eta, tz: tz, alignment: .trailing,
+                       color: state.minutesLate >= 5 ? .orange : .green)
+        } else if phase == .arrived, state.isLive {
+            TimeColumn(label: "Arrived", time: state.arriveAt, tz: tz, alignment: .trailing)
+        } else {
+            TimeColumn(label: "Arrive", time: state.arriveAt, tz: tz, alignment: .trailing)
+        }
+    }
+}
+
 enum DrivePhase {
-    case upcoming, driving, arrived
+    case upcoming, driving, live, arrived
 
     /// The app's view of the drive, moved on by the stale date (set to the departure, then the
     /// arrival) even when the app hasn't run.
     init(_ s: DriveActivityAttributes.ContentState, isStale: Bool) {
         let now = Date.now
-        if now >= s.arriveAt { self = .arrived }
+        if s.arrived == true { self = .arrived }
+        else if s.isLive { self = .live }
+        else if now >= s.arriveAt { self = .arrived }
         else if now >= s.leaveAt || isStale { self = .driving }
         else { self = .upcoming }
     }
@@ -175,6 +198,8 @@ private struct DriveRouteLine: View {
                 case .driving where state.arriveAt > state.leaveAt:
                     ProgressView(timerInterval: state.leaveAt...state.arriveAt, countsDown: false) { EmptyView() } currentValueLabel: { EmptyView() }
                         .progressViewStyle(.linear)
+                case .live:
+                    ProgressView(value: state.progress ?? 0).progressViewStyle(.linear)
                 case .driving, .arrived:
                     ProgressView(value: 1).progressViewStyle(.linear)
                 }
@@ -196,6 +221,17 @@ private struct DriveStatusLine: View {
     let tz: TimeZone
     var alignment: TextAlignment = .center
 
+    /// Compared with the plan: "On time", "6 min late", "4 min early".
+    private var lateness: Text {
+        guard state.plannedArrival != nil else {
+            return Text("\(state.remainingMinutes ?? 0) min to go").fontWeight(.semibold)
+        }
+        // Leaving early isn't news; only running behind the plan is.
+        let late = state.minutesLate
+        if late >= 5 { return Text("\(late) min behind plan").fontWeight(.semibold).foregroundStyle(.orange) }
+        return Text("On time").fontWeight(.semibold).foregroundStyle(.green)
+    }
+
     var body: some View {
         // One Text, so a live countdown (which stretches to fill its row) still centers or leads
         // with the rest of the line.
@@ -208,6 +244,10 @@ private struct DriveStatusLine: View {
             case .driving:
                 Text("Arriving around ").foregroundStyle(.secondary)
                     + Text(DriveText.time(state.arriveAt, tz)).fontWeight(.semibold)
+            case .live:
+                Text(Image(systemName: "location.fill")).foregroundStyle(.green)
+                    + Text(" Live · ").foregroundStyle(.secondary)
+                    + lateness
             case .arrived:
                 Text("You've arrived").foregroundStyle(.secondary)
             }
@@ -221,6 +261,8 @@ private struct DriveStatusLine: View {
 private struct DriveCompactCountdown: View {
     let state: DriveActivityAttributes.ContentState
     let phase: DrivePhase
+    /// The trip's zone, like every other time in the app.
+    let tz: TimeZone
 
     var body: some View {
         Group {
@@ -229,7 +271,9 @@ private struct DriveCompactCountdown: View {
                 Text(timerInterval: Date.now...max(state.leaveAt, .now), countsDown: true, showsHours: false)
                     .frame(maxWidth: 44)
             case .driving:
-                Text(state.arriveAt, style: .time)
+                Text(DriveText.time(state.arriveAt, tz))
+            case .live:
+                Text(DriveText.time(state.etaAt ?? state.arriveAt, tz))
             case .arrived:
                 Image(systemName: "flag.checkered")
             }
@@ -246,6 +290,19 @@ private enum DriveText {
         minutes < 60 ? "\(minutes) min" : "\(minutes / 60)h\(minutes % 60 == 0 ? "" : " \(minutes % 60)m")"
     }
 
+    /// Planned "27 min · 11 mi"; "19 min · 9 mi left" on the road; "Drove 24 min" at the end.
+    static func pill(_ s: DriveActivityAttributes.ContentState, phase: DrivePhase) -> String {
+        switch phase {
+        case .live:
+            let left = s.remainingText.map { " · \($0) left" } ?? ""
+            return duration(s.remainingMinutes ?? s.minutes) + left
+        case .arrived where s.isLive:
+            return "Drove " + duration(max(1, Int(s.arriveAt.timeIntervalSince(s.leaveAt) / 60)))
+        default:
+            return summary(s)
+        }
+    }
+
     /// "32 min · 18 km"
     static func summary(_ s: DriveActivityAttributes.ContentState) -> String {
         s.distanceText.isEmpty ? duration(s.minutes) : "\(duration(s.minutes)) · \(s.distanceText)"
@@ -256,6 +313,7 @@ private enum DriveText {
         switch phase {
         case .upcoming: "Leave \(time(s.leaveAt, tz)) · \(duration(s.minutes))"
         case .driving: "Arrive \(time(s.arriveAt, tz))"
+        case .live: "ETA \(time(s.etaAt ?? s.arriveAt, tz)) · \(duration(s.remainingMinutes ?? s.minutes)) left"
         case .arrived: "Arrived"
         }
     }

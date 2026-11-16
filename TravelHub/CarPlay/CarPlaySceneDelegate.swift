@@ -11,7 +11,8 @@ import UIKit
 /// - Nothing to set up or type in the car; trips are planned on the phone or Mac.
 /// - No message ever asks the driver to pick up the phone.
 /// - TravelHub doesn't navigate; "Directions" hands off to Maps on the car's screen.
-/// - Data refreshes at most once a minute (the limit is every 10 seconds).
+/// - Data refreshes every 30 seconds (the limit is every 10 seconds).
+/// - "Start Drive" opens Maps and keeps a live ETA in the list and on the dashboard.
 /// - Lists are capped to what the car allows while moving (as few as 12 rows).
 @MainActor
 final class CarPlaySceneDelegate: UIResponder, @preconcurrency CPTemplateApplicationSceneDelegate {
@@ -26,9 +27,10 @@ final class CarPlaySceneDelegate: UIResponder, @preconcurrency CPTemplateApplica
                                   didConnect interfaceController: CPInterfaceController) {
         self.scene = scene
         self.interfaceController = interfaceController
+        autoStartDueDrive()
         refresh()
 
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
         // Edits made on the phone show up in the car right away (but not more than every 10 s).
@@ -65,6 +67,8 @@ final class CarPlaySceneDelegate: UIResponder, @preconcurrency CPTemplateApplica
         var from: String?
         /// Where the drive to this stop starts: the previous stop, or the hotel for the first one.
         var origin: CLLocationCoordinate2D?
+        /// The saved drive, when this stop is one.
+        var legID: UUID?
     }
 
     private func refresh() {
@@ -102,6 +106,26 @@ final class CarPlaySceneDelegate: UIResponder, @preconcurrency CPTemplateApplica
         rootTemplate.updateSections(sections)
     }
 
+    private func startTracking(_ stop: Stop, tz: TimeZone) {
+        if let id = stop.legID,
+           let leg = try? AppData.container.mainContext.fetch(FetchDescriptor<DriveLeg>(predicate: #Predicate { $0.id == id })).first {
+            DriveTracker.shared.start(leg)
+        } else {
+            DriveTracker.shared.start(.init(id: UUID(), destination: stop.place, fromName: "", plannedArrival: stop.arriveBy,
+                                            leaveAt: .now, timeZoneIdentifier: tz.identifier))
+        }
+    }
+
+    /// Getting into the car around the time a planned drive leaves starts its live ETA.
+    private func autoStartDueDrive() {
+        guard DriveTracker.shared.target == nil else { return }
+        let legs = (try? AppData.container.mainContext.fetch(FetchDescriptor<DriveLeg>())) ?? []
+        if let due = legs.filter({ $0.trip != nil && $0.to.isSet && abs($0.departure.timeIntervalSinceNow) < 30 * 60 })
+            .min(by: { abs($0.departure.timeIntervalSinceNow) < abs($1.departure.timeIntervalSinceNow) }) {
+            DriveTracker.shared.start(due)
+        }
+    }
+
     /// The list template's title can't change, so a new trip or day gets a new root template.
     private func root(titled title: String) -> CPListTemplate {
         if let rootTemplate, rootTemplate.title == title { return rootTemplate }
@@ -126,7 +150,7 @@ final class CarPlaySceneDelegate: UIResponder, @preconcurrency CPTemplateApplica
                 arriveBy: d.travelMinutes > 0 ? d.arrival : nil, leaveBy: d.departure,
                 minutes: d.travelMinutes > 0 ? d.travelMinutes : nil,
                 distance: DriveService.distanceText(d.distanceMeters),
-                from: d.from.name.isEmpty ? nil : d.from.name)))
+                from: d.from.name.isEmpty ? nil : d.from.name, legID: d.id)))
         }
         for p in (trip.planItems ?? []) where p.isScheduled && cal.isDate(p.start, inSameDayAs: day) && p.end > now {
             guard let c = p.coordinate else { continue }
@@ -157,8 +181,20 @@ final class CarPlaySceneDelegate: UIResponder, @preconcurrency CPTemplateApplica
         return item
     }
 
-    /// "Leave 2:35 PM · 32 min", "Arrive by 10:00 AM".
+    /// The drive being followed right now, if it's this stop.
+    private func live(for stop: Stop) -> DriveTracker.Live? {
+        let tracker = DriveTracker.shared
+        guard let target = tracker.target, let live = tracker.live else { return nil }
+        let same = stop.legID.map { $0 == target.id }
+            ?? (abs(target.destination.latitude - stop.place.latitude) < 0.0005 && abs(target.destination.longitude - stop.place.longitude) < 0.0005)
+        return same ? live : nil
+    }
+
+    /// "Leave 2:35 PM · 32 min", "Arrive by 10:00 AM", or the live "ETA 3:52 PM · 18 min left".
     private func detailText(_ stop: Stop, tz: TimeZone) -> String {
+        if let live = live(for: stop) {
+            return "ETA \(live.eta.time(in: tz)) · \(DriveService.durationText(live.remainingMinutes)) left"
+        }
         if let leave = stop.leaveBy {
             return ["Leave \(leave.time(in: tz))", stop.minutes.map(DriveService.durationText)].compactMap { $0 }.joined(separator: " · ")
         }
@@ -181,6 +217,12 @@ final class CarPlaySceneDelegate: UIResponder, @preconcurrency CPTemplateApplica
         }
 
         var items: [CPInformationItem] = []
+        if let live = live(for: stop) {
+            items.append(CPInformationItem(title: "ETA (live)", detail: live.eta.time(in: tz)))
+            items.append(CPInformationItem(title: "Remaining", detail: [DriveService.durationText(live.remainingMinutes),
+                                                                        DriveService.distanceText(live.remainingMeters)]
+                .filter { !$0.isEmpty }.joined(separator: " · ")))
+        }
         if let leave = stop.leaveBy {
             items.append(CPInformationItem(title: "Leave", detail: leave.time(in: tz)))
         } else if let arrive = stop.arriveBy, let minutes {
@@ -195,7 +237,9 @@ final class CarPlaySceneDelegate: UIResponder, @preconcurrency CPTemplateApplica
         if let from = stop.from { items.append(CPInformationItem(title: "From", detail: from)) }
         if !stop.place.address.isEmpty { items.append(CPInformationItem(title: "Address", detail: stop.place.address)) }
 
-        let directions = CPTextButton(title: "Directions", textStyle: .confirm) { [weak self] _ in
+        // Maps does the navigating; TravelHub keeps the ETA live on the dashboard next to it.
+        let directions = CPTextButton(title: "Start Drive", textStyle: .confirm) { [weak self] _ in
+            self?.startTracking(stop, tz: tz)
             self?.scene?.open(DriveService.mapsURL(to: stop.place), options: nil, completionHandler: nil)
         }
         let template = CPInformationTemplate(title: stop.title, layout: .twoColumn, items: items, actions: [directions])

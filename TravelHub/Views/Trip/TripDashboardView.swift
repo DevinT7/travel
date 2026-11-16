@@ -138,7 +138,7 @@ struct TripDashboardView: View {
                 LazyVGrid(columns: columns(for: drives.count), spacing: 12) {
                     ForEach(drives) { leg in
                         DriveCardView(leg: leg, tz: trip.timeZone,
-                                      footer: DriveActivities.canTrack(leg) ? AnyView(driveLiveRow(leg)) : nil)
+                                      footer: Self.offersStartDrive ? AnyView(driveLiveRow(leg)) : nil)
                             .contentShape(Rectangle())
                             .onTapGesture { editingDrive = leg }
                             .contextMenu {
@@ -158,34 +158,74 @@ struct TripDashboardView: View {
         }
     }
 
-    /// Bottom row of a drive card: shows on the Lock Screen and the CarPlay dashboard.
+    /// Start Drive is on every drive on iPhone, whenever it is: plans change, and tapping it just
+    /// means "I'm driving there now". The Mac has no live ETA, so it keeps the Directions button only.
+    private static var offersStartDrive: Bool {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    /// Today: what it does. Another day: when to use it.
+    private func startDriveHint(_ leg: DriveLeg) -> String {
+        if trip.calendar.isDate(leg.departure, inSameDayAs: .now) || leg.departure < .now {
+            return "Opens Maps and keeps your ETA live on the Lock Screen and CarPlay"
+        }
+        return "Tap when you head out on \(leg.departure.weekdayDayMonth(in: trip.timeZone)) for Maps and a live ETA"
+    }
+
+    /// Bottom row of a drive card: "Start Drive" (Maps plus a live ETA on the Lock Screen and
+    /// CarPlay), or the live ETA while the drive is under way.
+    @ViewBuilder
     private func driveLiveRow(_ leg: DriveLeg) -> some View {
-        HStack(spacing: 8) {
-            if DriveActivities.isTracking(leg) {
-                Circle().fill(.green).frame(width: 8, height: 8)
-                Text("On Lock Screen & CarPlay").font(.subheadline.weight(.medium))
-                Spacer()
-                Button("Stop") {
-                    Task { await DriveActivities.stop(leg); trackingRevision += 1 }
-                }
-                .font(.subheadline)
-                .buttonStyle(.borderless)
-            } else {
-                Button {
-                    DriveActivities.start(leg)
-                    trackingRevision += 1
-                } label: {
-                    HStack {
-                        Label("Show on Lock Screen & CarPlay", systemImage: "car.rear.road.lane")
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+        let tracker = DriveTracker.shared
+        if tracker.isTracking(leg.id) {
+            HStack(spacing: 8) {
+                Image(systemName: tracker.status == .denied ? "location.slash.fill" : "location.fill")
+                    .foregroundStyle(tracker.status == .denied ? Color.orange : Color.green)
+                VStack(alignment: .leading, spacing: 1) {
+                    switch tracker.status {
+                    case .denied:
+                        Text("Location is off for TravelHub").font(.subheadline.weight(.medium))
+                        Text("Turn it on in Settings to see a live ETA.").font(.caption).foregroundStyle(.secondary)
+                    case .live:
+                        if let live = tracker.live {
+                            Text("ETA \(live.eta.time(in: trip.timeZone)) · \(DriveService.durationText(live.remainingMinutes)) left")
+                                .font(.subheadline.weight(.semibold)).monospacedDigit()
+                            let late = tracker.target.map { live.minutesLate(for: $0) } ?? 0
+                            Text(late >= 5 ? "\(late) min behind plan" : "On time")
+                                .font(.caption).foregroundStyle(late >= 5 ? Color.orange : .secondary)
+                        }
+                    default:
+                        Text("Finding your location…").font(.subheadline.weight(.medium))
                     }
-                    .font(.subheadline.weight(.medium))
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.drive)
+                Spacer()
+                Button("End") { tracker.stop(); trackingRevision += 1 }
+                    .font(.subheadline)
+                    .buttonStyle(.borderless)
             }
+        } else {
+            Button {
+                DriveService.startDrive(leg)
+                trackingRevision += 1
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "car.fill")
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Start Drive").font(.subheadline.weight(.semibold))
+                        Text(startDriveHint(leg))
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.drive)
         }
     }
 

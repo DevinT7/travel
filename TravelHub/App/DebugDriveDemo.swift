@@ -5,7 +5,8 @@ import Foundation
 
 /// Debug-only: launched with `-DemoDrive YES`, replaces a "Demo Road Trip" with a driving day in
 /// Los Angeles (a hotel, two stops and a drive leaving soon) and starts the drive's Live Activity,
-/// so the Plan, the Lock Screen and CarPlay can be checked in the simulator.
+/// so the Plan, the Lock Screen and CarPlay can be checked in the simulator. `-DemoDriveLive YES`
+/// also starts the live ETA.
 @MainActor
 enum DebugDriveDemo {
     static func runIfRequested(context: ModelContext) async -> Trip? {
@@ -38,13 +39,27 @@ enum DebugDriveDemo {
         let drive = DriveLeg(from: DrivePlace(name: "Shore Hotel", address: stay.address, coordinate: stay.coordinate),
                              to: DrivePlace(name: "Malibu Pier", address: "23000 Pacific Coast Hwy, Malibu",
                                             coordinate: .init(latitude: 34.0378, longitude: -118.6775)),
-                             departure: round(now.addingTimeInterval(30 * 60)))
+                             departure: round(now.addingTimeInterval(30 * 60 + Double(UserDefaults.standard.integer(forKey: "DemoDriveDays")) * 86400)))
         drive.vehicle = "Rental car"
         context.insert(drive); drive.trip = trip
         await DriveService.shared.refresh(drive)
         try? context.save()
         UserDefaults.standard.set(trip.id.uuidString, forKey: "selectedTripID")
         DriveActivities.start(drive)
+        // `-DemoDriveLive YES` also follows the drive live (pair with `simctl location start`).
+        if UserDefaults.standard.bool(forKey: "DemoDriveLive") {
+            drive.departure = round(now.addingTimeInterval(-60))
+            try? context.save()
+            DriveTracker.shared.start(drive)
+            // `-DemoDriveDismiss YES` ends the activity from outside the tracker after a few
+            // seconds, as a Lock Screen swipe would; the live ETA should stop with it.
+            if UserDefaults.standard.bool(forKey: "DemoDriveDismiss") {
+                try? await Task.sleep(for: .seconds(8))
+                for activity in Activity<DriveActivityAttributes>.activities { await activity.end(nil, dismissalPolicy: .immediate) }
+                try? await Task.sleep(for: .seconds(1))
+                print("DemoDriveDismiss: tracker still running =", DriveTracker.shared.target != nil)
+            }
+        }
         return trip
     }
 }

@@ -117,7 +117,7 @@ struct PlanView: View {
         .onAppear { if selectedDay == nil { selectedDay = initialDay } }
         .sheet(item: $editing) { PlanItemEditor(trip: trip, mode: .edit($0)) }
         .sheet(item: $editingDrive) { DriveLegEditor(trip: trip, leg: $0) }
-        .sheet(item: $newDrive) { DriveLegEditor(trip: trip, leg: nil, from: $0.from, to: $0.to, departure: $0.departure) }
+        .sheet(item: $newDrive) { DriveLegEditor(trip: trip, leg: nil, from: $0.from, to: $0.to, departure: $0.departure, arriveBy: $0.arriveBy) }
         .sheet(isPresented: $addingCustom) { PlanItemEditor(trip: trip, mode: .custom(day: selectedDay)) }
     }
 
@@ -127,6 +127,7 @@ struct PlanView: View {
         var from: DrivePlace?
         var to: DrivePlace?
         var departure: Date?
+        var arriveBy: Date?
     }
 
     /// How to get between stops. Driving shows drive times and "leave by" between every stop.
@@ -154,12 +155,11 @@ struct PlanView: View {
     private func travelRow(_ entries: [TimelineEntry], _ index: Int) -> some View {
         let prev = entries[index - 1], entry = entries[index]
         if !isFlightLeg(prev, entry), let a = prev.departureCoordinate, let b = entry.coordinate, let to = entry.place {
-            TravelRow(from: a, to: b, destination: to, mode: trip.gettingAround,
+            TravelRow(from: a, to: b, destination: to, originName: prev.endName ?? prev.title, mode: trip.gettingAround,
                       gap: entry.start.timeIntervalSince(prev.end ?? prev.start), arriveBy: entry.start, tz: trip.timeZone,
                       onSaveAsDrive: { minutes in
                           let fromPlace = DrivePlace(name: prev.endName ?? prev.title, address: prev.subtitle, coordinate: a)
-                          newDrive = NewDrive(from: fromPlace, to: to,
-                                              departure: entry.start.addingTimeInterval(-TimeInterval((minutes ?? 30) * 60)))
+                          newDrive = NewDrive(from: fromPlace, to: to, arriveBy: entry.start)
                       })
         }
     }
@@ -187,10 +187,19 @@ struct PlanView: View {
 
     private func entryMenu(_ entry: TimelineEntry) -> some View {
         Group {
-            if let place = entry.drive?.to ?? entry.place {
+            if let drive = entry.drive {
+                Button("Start Drive", systemImage: "car") { DriveService.startDrive(drive) }
+            } else if let place = entry.place, entry.planItem == nil || trip.gettingAround != .drive {
                 Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond") {
-                    DriveService.openDirections(to: place, mode: entry.drive != nil ? .drive : trip.gettingAround)
+                    DriveService.openDirections(to: place, mode: trip.gettingAround)
                 }
+            }
+            if let item = entry.planItem, let place = entry.place {
+                Button("Drive Here Now", systemImage: "car.fill") {
+                    DriveService.startDrive(to: place, from: "", plannedArrival: item.start, timeZone: trip.timeZone)
+                }
+                Button("Plan a Drive Here", systemImage: "car") { newDrive = NewDrive(to: place, arriveBy: item.start) }
+                Divider()
             }
             if let item = entry.planItem {
                 Button("Edit", systemImage: "pencil") { editing = item }
@@ -279,9 +288,17 @@ struct PlanView: View {
                             }
                         }
                         .swipeActions(edge: .leading) {
-                            if let place = entry.drive?.to ?? entry.place {
+                            if let drive = entry.drive {
+                                Button("Start Drive", systemImage: "car") { DriveService.startDrive(drive) }
+                                    .tint(Color.drive)
+                            } else if let place = entry.place, let item = entry.planItem, trip.gettingAround == .drive {
+                                Button("Drive Here", systemImage: "car") {
+                                    DriveService.startDrive(to: place, from: "", plannedArrival: item.start, timeZone: trip.timeZone)
+                                }
+                                .tint(Color.drive)
+                            } else if let place = entry.place {
                                 Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond") {
-                                    DriveService.openDirections(to: place, mode: entry.drive != nil ? .drive : trip.gettingAround)
+                                    DriveService.openDirections(to: place, mode: trip.gettingAround)
                                 }
                                 .tint(Color.drive)
                             }
@@ -467,6 +484,7 @@ private struct TravelRow: View {
     let from: CLLocationCoordinate2D
     let to: CLLocationCoordinate2D
     let destination: DrivePlace
+    let originName: String
     let mode: GettingAround
     let gap: TimeInterval
     let arriveBy: Date
@@ -485,7 +503,7 @@ private struct TravelRow: View {
 
     var body: some View {
         Button {
-            DriveService.openDirections(to: destination, mode: directionsMode)
+            go()
         } label: {
             HStack(spacing: 6) {
                 Rectangle().fill(Color.secondary.opacity(0.3)).frame(width: 2, height: 18).padding(.horizontal, 15)
@@ -509,13 +527,21 @@ private struct TravelRow: View {
         .disabled(estimate == nil)
         .accessibilityLabel(estimate.map { "\($0.text). Directions to \(destination.name)" } ?? "")
         .contextMenu {
-            Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond") {
-                DriveService.openDirections(to: destination, mode: directionsMode)
-            }
+            Button(directionsMode == .drive ? "Start Drive" : "Directions",
+                   systemImage: directionsMode == .drive ? "car" : "arrow.triangle.turn.up.right.diamond") { go() }
             Button("Save as a Drive", systemImage: "car") { onSaveAsDrive(estimate?.mode == .drive ? estimate?.minutes : nil) }
         }
         .task(id: "\(from.latitude),\(from.longitude)>\(to.latitude),\(to.longitude)|\(mode.rawValue)") {
             estimate = await DirectionsService.shared.estimate(from: from, to: to, mode: mode)
+        }
+    }
+
+    /// Driving gets Maps plus a live ETA against the stop's start time; walking and transit just open Maps.
+    private func go() {
+        if directionsMode == .drive {
+            DriveService.startDrive(to: destination, from: originName, plannedArrival: arriveBy, timeZone: tz)
+        } else {
+            DriveService.openDirections(to: destination, mode: directionsMode)
         }
     }
 

@@ -60,6 +60,20 @@ enum FlightActivities {
         #endif
     }
 
+    /// Ends the Live Activity of any flight that's been deleted, on its own or with its trip.
+    /// Runs after every save; local only, no status fetch.
+    static func endRemoved() async {
+        #if os(iOS)
+        let running = Activity<FlightActivityAttributes>.activities
+        guard !running.isEmpty else { return }
+        let flights = (try? AppData.container.mainContext.fetch(FetchDescriptor<FlightSegment>())) ?? []
+        let saved = Set(flights.filter { $0.trip != nil && !$0.isDeleted }.map(\.id))
+        for activity in running where !saved.contains(activity.attributes.flightID) {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+        #endif
+    }
+
     /// Syncs against every flight in the database.
     static func syncAll() async {
         #if os(iOS)

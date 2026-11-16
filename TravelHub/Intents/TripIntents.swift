@@ -286,6 +286,80 @@ struct AddTripToCalendarIntent: AppIntent {
     }
 }
 
+// MARK: - Driving
+
+/// The next drive: a saved drive leg, or the next plan stop with a place.
+@MainActor
+private enum NextDrive {
+    struct Target { var place: DrivePlace; var arriveBy: Date?; var leg: DriveLeg?; var from: String; var trip: Trip }
+
+    static func find() -> Target? {
+        let now = Date.now
+        var options: [(Date, Target)] = []
+        for trip in IntentData.trips() {
+            if let leg = trip.sortedDrives.first(where: { $0.arrival > now && $0.to.isSet }) {
+                options.append((leg.departure, Target(place: leg.to, arriveBy: leg.travelMinutes > 0 ? leg.arrival : nil,
+                                                      leg: leg, from: leg.from.name, trip: trip)))
+            }
+            if let p = (trip.planItems ?? []).filter({ $0.isScheduled && $0.start > now && $0.coordinate != nil })
+                .min(by: { $0.start < $1.start }), let c = p.coordinate {
+                options.append((p.start, Target(place: DrivePlace(name: p.title, address: p.address, coordinate: c),
+                                                arriveBy: p.start, leg: nil, from: "", trip: trip)))
+            }
+        }
+        return options.min(by: { $0.0 < $1.0 })?.1
+    }
+}
+
+struct LeaveTimeIntent: AppIntent {
+    static var title: LocalizedStringResource = "When Should I Leave"
+    static var description = IntentDescription("Checks traffic to your next stop and tells you when to leave.")
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let next = NextDrive.find() else {
+            return .result(dialog: "You don't have anywhere to drive to coming up in TravelHub.")
+        }
+        let tz = next.trip.timeZone
+        let fmt = Date.FormatStyle(date: .omitted, time: .shortened, timeZone: tz)
+        // From the drive's start, or the hotel for a plan stop.
+        let origin = next.leg?.from.coordinate ?? next.trip.stay(on: next.arriveBy ?? .now)?.coordinate
+        var minutes = next.leg?.travelMinutes ?? 0
+        if let origin, let route = try? await DriveService.shared.route(from: origin, to: next.place.coordinate, departure: next.leg?.departure) {
+            minutes = route.minutes
+        }
+        if let leg = next.leg {
+            return .result(dialog: "Leave at \(leg.departure.formatted(fmt)) for \(next.place.name). It's about \(DriveService.durationText(minutes)) with traffic.")
+        }
+        guard let arrive = next.arriveBy, minutes > 0 else {
+            return .result(dialog: "Your next stop is \(next.place.name).")
+        }
+        let leave = arrive.addingTimeInterval(-TimeInterval(minutes * 60))
+        return .result(dialog: leave <= .now
+            ? "You should head out now for \(next.place.name). It's about \(DriveService.durationText(minutes)) away and starts at \(arrive.formatted(fmt))."
+            : "Leave by \(leave.formatted(fmt)) for \(next.place.name). It's about \(DriveService.durationText(minutes)) with traffic.")
+    }
+}
+
+struct StartDriveIntent: AppIntent {
+    static var title: LocalizedStringResource = "Start My Next Drive"
+    static var description = IntentDescription("Opens directions in Maps to your next stop and keeps your ETA live on the Lock Screen and CarPlay.")
+    static var openAppWhenRun = true
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let next = NextDrive.find() else {
+            return .result(dialog: "You don't have anywhere to drive to coming up in TravelHub.")
+        }
+        if let leg = next.leg {
+            DriveService.startDrive(leg)
+        } else {
+            DriveService.startDrive(to: next.place, from: next.from, plannedArrival: next.arriveBy, timeZone: next.trip.timeZone)
+        }
+        return .result(dialog: "Starting directions to \(next.place.name).")
+    }
+}
+
 // MARK: - Siri phrases
 
 struct TravelHubShortcuts: AppShortcutsProvider {
@@ -318,6 +392,17 @@ struct TravelHubShortcuts: AppShortcutsProvider {
             "Save a place to \(.applicationName)",
             "Add an idea to my \(.applicationName) trip",
         ], shortTitle: "Save a Place", systemImageName: "bookmark")
+
+        AppShortcut(intent: LeaveTimeIntent(), phrases: [
+            "When should I leave in \(.applicationName)",
+            "When do I need to leave in \(.applicationName)",
+            "How long is my drive in \(.applicationName)",
+        ], shortTitle: "When to Leave", systemImageName: "car")
+
+        AppShortcut(intent: StartDriveIntent(), phrases: [
+            "Start my drive in \(.applicationName)",
+            "Take me to my next stop with \(.applicationName)",
+        ], shortTitle: "Start Drive", systemImageName: "car.fill")
 
         AppShortcut(intent: AddTripToCalendarIntent(), phrases: [
             "Add my trip to my calendar with \(.applicationName)",

@@ -28,6 +28,7 @@
 		35000DD7266093B76F728013 /* FlightActivities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47061BBFB0F5C1F9847D0590 /* FlightActivities.swift */; };
 		3CDDC3F099374DCBC2A4EFF7 /* DriveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C562327EA5DBC38153F85804 /* DriveService.swift */; };
 		546BFE2972253BCFFF43F7A7 /* DiscoverCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67AC3EA4E34C4EAEF834004B /* DiscoverCards.swift */; };
+		5714BFA3F2BD3E1216F93C10 /* CurrentLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E88A1E0D2155EC4F69395C /* CurrentLocation.swift */; };
 		61FDC8AA85A59E6B7C5379CC /* DriveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AAFBF7490E0BC1ADC331C8 /* DriveActivityAttributes.swift */; };
 		65A534B53800850479875652 /* TripCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AF9625EB23A09CB73A0BADE /* TripCover.swift */; };
 		6CE8944B43C4A626DFDC10B0 /* TripInfoViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAC45D1ECDE8B1E4E319B8B /* TripInfoViews.swift */; };
@@ -36,6 +37,7 @@
 		8411E25635CC53FC3DC6BC89 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742378157E7FCC5750997E28 /* SettingsView.swift */; };
 		89F859AE2A5219AE616E5E31 /* TripDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795817CDFDE866E1C73C4583 /* TripDashboardView.swift */; };
 		8CA70A7BE16B9E57F24CDAD2 /* DriveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AAFBF7490E0BC1ADC331C8 /* DriveActivityAttributes.swift */; };
+		8D6B880EA731BBE0D735C079 /* DriveTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAEA2C10FC0EBB88B1693A6A /* DriveTracker.swift */; };
 		94114184883BABAE775204DD /* PlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CE8C815F32EA64A22554B35 /* PlanView.swift */; };
 		9577439A3C290430651D969E /* CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD977CC16EFD2B3899A6A108 /* CarPlaySceneDelegate.swift */; };
 		A0042F242D4831F33CB3D6C6 /* CalendarExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A08BE6E2AF0A38B0852D4932 /* CalendarExport.swift */; };
@@ -126,6 +128,7 @@
 		8AA4B83867C58AD61F19AC8A /* FlightCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlightCardView.swift; sourceTree = "<group>"; };
 		8AAD729FF281DD6ABEDFECB3 /* HTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTP.swift; sourceTree = "<group>"; };
 		8CE8C815F32EA64A22554B35 /* PlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanView.swift; sourceTree = "<group>"; };
+		92E88A1E0D2155EC4F69395C /* CurrentLocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrentLocation.swift; sourceTree = "<group>"; };
 		93EAFDE07900D75881C069C2 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		954EE4683FF9C0A81713F626 /* TripIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripIntents.swift; sourceTree = "<group>"; };
 		9BCF74ED55A58D6FA83CF2C1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -134,6 +137,7 @@
 		A41EA5FEB9BE10025E9C7D9B /* TripsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsListView.swift; sourceTree = "<group>"; };
 		A74FA47D03E79BF0B6B0A0E7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A8B9F9B8B574D9AB89DE266F /* TravelHub.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TravelHub.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAEA2C10FC0EBB88B1693A6A /* DriveTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveTracker.swift; sourceTree = "<group>"; };
 		B7FB815F7F9A9FF57CBD81D5 /* PlanItemEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanItemEditor.swift; sourceTree = "<group>"; };
 		BE85157750BC76E435BC525B /* Airlines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Airlines.swift; sourceTree = "<group>"; };
 		C08CC110AAAA4F2C1739D20D /* TripHeroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeroView.swift; sourceTree = "<group>"; };
@@ -292,9 +296,11 @@
 				A08BE6E2AF0A38B0852D4932 /* CalendarExport.swift */,
 				25A0B526E75E16606CCB9BE4 /* ConfirmationImporter.swift */,
 				D38CE43846FA6525121AA8A8 /* ConfirmationParser.swift */,
+				92E88A1E0D2155EC4F69395C /* CurrentLocation.swift */,
 				D2BD7DDF591BC9771EB4A0B3 /* DiscoverProviders.swift */,
 				3DE1C1C3465B4AAA35E90B10 /* DriveActivities.swift */,
 				C562327EA5DBC38153F85804 /* DriveService.swift */,
+				AAEA2C10FC0EBB88B1693A6A /* DriveTracker.swift */,
 				C2161D27E33181F5D5D27752 /* ExplorePlaces.swift */,
 				47061BBFB0F5C1F9847D0590 /* FlightActivities.swift */,
 				D2E3C8A627C1046C38D19D61 /* FlightBackgroundRefresh.swift */,
@@ -468,6 +474,7 @@
 				D75978292FE05B006236C11E /* Components.swift in Sources */,
 				C75FB4BD5EC545EB29B87BF9 /* ConfirmationImporter.swift in Sources */,
 				1A689128DDC4414D47780165 /* ConfirmationParser.swift in Sources */,
+				5714BFA3F2BD3E1216F93C10 /* CurrentLocation.swift in Sources */,
 				DFCAAA1E5D671A14138CB196 /* DebugDriveDemo.swift in Sources */,
 				C973A3771B17741E718E20FD /* DebugFlightDemo.swift in Sources */,
 				78C49A34B94D1D5CE60546D4 /* DebugSnapshot.swift in Sources */,
@@ -480,6 +487,7 @@
 				E3249A5AD2DC3F3E8D9CD003 /* DriveActivities.swift in Sources */,
 				8CA70A7BE16B9E57F24CDAD2 /* DriveActivityAttributes.swift in Sources */,
 				3CDDC3F099374DCBC2A4EFF7 /* DriveService.swift in Sources */,
+				8D6B880EA731BBE0D735C079 /* DriveTracker.swift in Sources */,
 				1911ABB7AFE5764B27EB3E4C /* DriveViews.swift in Sources */,
 				203E0C5218E27AB8D71A26C3 /* ExplorePlacePicker.swift in Sources */,
 				DAF270CCD2A72218A123059B /* ExplorePlaces.swift in Sources */,

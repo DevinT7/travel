@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import SwiftData
 import MapKit
 
@@ -68,6 +69,13 @@ struct RootView: View {
                     model.selectedTripID = model.currentTrip(from: trips)?.id
                 }
                 model.openOngoingTrip(from: trips)
+            }
+        }
+        // Deleting a drive or flight (or the trip it's in) ends its Live Activity right away.
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave).receive(on: RunLoop.main)) { _ in
+            Task {
+                await DriveActivities.endRemoved()
+                await FlightActivities.endRemoved()
             }
         }
         // Keep flight Live Activities current, and start one for a flight leaving soon.
