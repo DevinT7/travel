@@ -51,7 +51,8 @@ struct FlightLiveActivity: Widget {
                         HStack(alignment: .center) {
                             FlightPhaseView(state: s, phase: phase, destination: a.toCity).font(.subheadline).lineLimit(1).minimumScaleFactor(0.8)
                             Spacer(minLength: 8)
-                            GateLine(state: s, phase: phase)
+                            // Just the gate (or belt) here; the terminal name would squeeze the countdown.
+                            GateLine(state: s, phase: phase, showsDetail: false)
                         }
                     }
                     .padding(.horizontal, 4)
@@ -259,6 +260,7 @@ private struct FlightPhaseView: View {
 private struct GateLine: View {
     let state: FlightActivityAttributes.ContentState
     let phase: FlightActivityAttributes.ContentState.Phase
+    var showsDetail = true
 
     var body: some View {
         let (main, detail): (String?, String?) = switch phase {
@@ -272,7 +274,7 @@ private struct GateLine: View {
         if let main {
             VStack(alignment: .trailing, spacing: 0) {
                 Text(main).font(.headline)
-                if let detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
+                if showsDetail, let detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
             }
             .lineLimit(1)
             .minimumScaleFactor(0.75)
