@@ -1,11 +1,16 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 @main
 struct TravelHubApp: App {
     @State private var model = AppModel()
 
     let container = AppData.container
+
+    init() {
+        UNUserNotificationCenter.current().delegate = NotificationRouter.shared
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -92,9 +97,13 @@ final class AppModel {
     }
 
     func open(_ trip: Trip, section: TripSection = .overview) {
-        selectedTripID = trip.id
+        open(tripID: trip.id, section: section)
+    }
+
+    func open(tripID: UUID, section: TripSection = .overview) {
+        selectedTripID = tripID
         tripSection = section
-        path = [trip.id]
+        path = [tripID]
     }
 
     /// On launch, go straight into a trip that's happening today; otherwise stay on the list.

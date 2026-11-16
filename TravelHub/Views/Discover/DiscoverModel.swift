@@ -44,7 +44,8 @@ final class DiscoverModel {
 
     static func cached(trip: Trip, place: ExplorePlace?) -> DiscoverModel {
         let center = place?.coordinate ?? trip.sortedStays.first?.coordinate ?? trip.coordinate
-        let key = "\(trip.id)|\((center.latitude * 1000).rounded()),\((center.longitude * 1000).rounded())"
+        // Adding or removing a Google key changes where places come from, so it gets its own entry.
+        let key = "\(trip.id)|\((center.latitude * 1000).rounded()),\((center.longitude * 1000).rounded())|\(GooglePlacesProvider.isEnabled)"
         if let hit = cache[key] { return hit }
         let model = DiscoverModel(trip: trip, place: place)
         cache[key] = model
@@ -75,7 +76,13 @@ final class DiscoverModel {
             case .events:
                 items = try await TicketmasterProvider().events(near: center, from: start, to: end)
             default:
-                items = try await MapKitPlacesProvider().search(category: category, near: center)
+                // Google adds ratings and hours; Apple Maps is the free fallback if it isn't set up or fails.
+                if GooglePlacesProvider.isEnabled,
+                   let google = try? await GooglePlacesProvider().search(category: category, near: center), !google.isEmpty {
+                    items = google
+                } else {
+                    items = try await MapKitPlacesProvider().search(category: category, near: center)
+                }
             }
             states[category] = .loaded(items)
         } catch {

@@ -34,6 +34,11 @@ enum DebugDriveDemo {
         getty.latitude = 34.0780; getty.longitude = -118.4741; getty.address = "1200 Getty Center Dr"
         let griffith = PlanItem(title: "Griffith Observatory", category: .sights, start: round(now.addingTimeInterval(5 * 3600)), durationMinutes: 90)
         griffith.latitude = 34.1184; griffith.longitude = -118.3004; griffith.address = "2800 E Observatory Rd"
+        // The observatory's real hours (closed Mondays), so Plan's closed-time warning can be checked.
+        griffith.openingHours = PlaceHours(
+            periods: [0, 6].map { .init(open: $0 * 1440 + 10 * 60, close: $0 * 1440 + 22 * 60) }
+                + (2...5).map { .init(open: $0 * 1440 + 12 * 60, close: $0 * 1440 + 22 * 60) },
+            weekdayText: [], timeZone: la)
         for p in [getty, griffith] { context.insert(p); p.trip = trip }
 
         let drive = DriveLeg(from: DrivePlace(name: "Shore Hotel", address: stay.address, coordinate: stay.coordinate),

@@ -60,7 +60,10 @@ struct RootView: View {
                 .animation(.snappy(duration: 0.3), value: model.path)
             }
         }
-        .task { removeLegacyDemoData() }
+        .task {
+            removeLegacyDemoData()
+            NotificationRouter.shared.openTrip = { [model] id in model.open(tripID: id, section: .plan) }
+        }
         // Once the trips have loaded: open a trip that's happening today, or pick one for the sidebar.
         .task(id: trips.isEmpty) {
             if !didAutoOpen, !trips.isEmpty {
@@ -77,6 +80,7 @@ struct RootView: View {
                 await DriveActivities.endRemoved()
                 await FlightActivities.endRemoved()
             }
+            LeaveReminders.scheduleSoon()
         }
         // Keep flight Live Activities current, and start one for a flight leaving soon.
         .task(id: scenePhase) {
@@ -85,6 +89,7 @@ struct RootView: View {
                 await FlightActivities.syncAll()
                 await DriveActivities.syncAll()
                 FlightBackgroundRefresh.schedule()
+                LeaveReminders.scheduleSoon()
             case .background: FlightBackgroundRefresh.schedule()
             default: break
             }

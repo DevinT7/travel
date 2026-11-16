@@ -107,6 +107,10 @@ struct PlanItemEditor: View {
                         Picker("Duration", selection: $duration) {
                             ForEach(Self.durations, id: \.self) { m in Text(Self.durationLabel(m)).tag(m) }
                         }
+                        if let warning = closedWarning {
+                            Label(warning, systemImage: "clock.badge.exclamationmark")
+                                .foregroundStyle(.orange)
+                        }
                         if let destination {
                             GettingThereRow(trip: trip, destination: destination, start: combinedStart, excluding: editingID)
                         }
@@ -155,6 +159,20 @@ struct PlanItemEditor: View {
     }
 
     private var isDiscover: Bool { if case .fromDiscover = mode { true } else { false } }
+
+    /// The place's opening hours, if known, to warn while picking a time it's closed.
+    private var hours: PlaceHours? {
+        switch mode {
+        case .fromDiscover(let item): item.google?.hours
+        case .edit(let p): p.openingHours
+        case .custom: nil
+        }
+    }
+
+    private var closedWarning: String? {
+        guard category != .events else { return nil }
+        return hours?.conflict(start: combinedStart, end: combinedStart.addingTimeInterval(TimeInterval(duration * 60)))
+    }
 
     private var editingID: UUID? { if case .edit(let p) = mode { p.id } else { nil } }
 
@@ -281,15 +299,7 @@ private struct GettingThereRow: View {
     @State private var estimate: TravelEstimate?
 
     private var origin: (name: String, coordinate: CLLocationCoordinate2D)? {
-        let cal = trip.calendar
-        let earlier = (trip.planItems ?? [])
-            .filter { $0.isScheduled && $0.id != excluding && $0.coordinate != nil && $0.start < start && cal.isDate($0.start, inSameDayAs: start) }
-            .max { $0.start < $1.start }
-        let drive = trip.sortedDrives.filter { $0.to.isSet && $0.arrival <= start && cal.isDate($0.arrival, inSameDayAs: start) }.last
-        if let drive, drive.arrival > (earlier?.end ?? .distantPast) { return (drive.to.name, drive.to.coordinate) }
-        if let earlier, let c = earlier.coordinate { return (earlier.title, c) }
-        if let stay = trip.stay(on: start) { return (stay.name, stay.coordinate) }
-        return nil
+        trip.origin(before: start, excluding: excluding)
     }
 
     var body: some View {

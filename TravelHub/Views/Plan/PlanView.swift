@@ -44,6 +44,8 @@ struct PlanView: View {
     @State private var addingCustom = false
     @State private var showingMap = false
     @State private var focusedEntryID: String?
+    @AppStorage(LeaveReminders.enabledKey) private var remindersOn = false
+    @AppStorage(LeaveReminders.offerAnsweredKey) private var reminderOfferAnswered = false
 
     private var isWide: Bool {
         #if os(iOS)
@@ -59,6 +61,12 @@ struct PlanView: View {
         VStack(spacing: 0) {
             DayPicker(trip: trip, selectedDay: $selectedDay, ideaCount: ideas.count)
                 .padding(.vertical, 8)
+            if showsReminderOffer {
+                reminderOffer
+                    .padding(.horizontal, Metrics.gutter)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
             if let day = selectedDay {
                 let entries = entries(for: day)
                 if isWide {
@@ -115,10 +123,39 @@ struct PlanView: View {
             }
         }
         .onAppear { if selectedDay == nil { selectedDay = initialDay } }
+        // Stops added before hours were saved (or by hand) get them looked up once.
+        .task(id: (trip.planItems ?? []).count) { await PlanHours.fill(trip, context: context) }
         .sheet(item: $editing) { PlanItemEditor(trip: trip, mode: .edit($0)) }
         .sheet(item: $editingDrive) { DriveLegEditor(trip: trip, leg: $0) }
         .sheet(item: $newDrive) { DriveLegEditor(trip: trip, leg: nil, from: $0.from, to: $0.to, departure: $0.departure, arriveBy: $0.arriveBy) }
         .sheet(isPresented: $addingCustom) { PlanItemEditor(trip: trip, mode: .custom(day: selectedDay)) }
+    }
+
+    /// Offered once, on a trip that hasn't ended and has stops with places to travel between.
+    private var showsReminderOffer: Bool {
+        !remindersOn && !reminderOfferAnswered && trip.endDate > .now
+            && (trip.planItems ?? []).contains { $0.isScheduled && $0.coordinate != nil }
+    }
+
+    private var reminderOffer: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "bell.badge").font(.headline).foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Get a heads-up when it's time to leave for each stop, based on travel time from the one before.")
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 16) {
+                    Button("Turn On") { Task { await LeaveReminders.turnOn() } }
+                        .font(.subheadline.weight(.semibold))
+                    Button("Not Now") { withAnimation { reminderOfferAnswered = true } }
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+            }
+            Spacer(minLength: 0)
+        }
+        .card(padding: 14)
     }
 
     /// A drive being created, prefilled from a gap in the plan.
@@ -139,6 +176,12 @@ struct PlanView: View {
                 }
             }
             .pickerStyle(.inline)
+            Divider()
+            Toggle(isOn: Binding(get: { remindersOn }, set: { on in
+                if on { Task { await LeaveReminders.turnOn() } } else { LeaveReminders.turnOff() }
+            })) {
+                Label("Leave-by Alerts", systemImage: "bell")
+            }
         } label: {
             Label("Getting Around: \(trip.gettingAround.title)", systemImage: trip.gettingAround == .auto ? "car.2" : trip.gettingAround.symbol)
         }
@@ -462,6 +505,12 @@ private struct TimelineRow: View {
                 }
                 if !entry.subtitle.isEmpty {
                     Text(entry.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                }
+                if let warning = entry.planItem?.closedWarning {
+                    Text("\(Image(systemName: "clock.badge.exclamationmark")) \(warning)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.orange)
+                        .lineLimit(1)
                 }
             }
             Spacer(minLength: 8)

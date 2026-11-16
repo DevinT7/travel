@@ -120,6 +120,7 @@ enum DiscoverSource: String, Codable {
     case appleMaps = "Apple Maps"
     case wikipedia = "Wikipedia"
     case ticketmaster = "Ticketmaster"
+    case google = "Google"
     case custom = "Custom"
 }
 
@@ -143,6 +144,8 @@ struct DiscoverItem: Identifiable, Hashable {
     var phone: String?
     /// MapKit only: lets the detail view open Apple's full place card.
     var mapItemIdentifier: String?
+    /// Rating, price and hours, when the place came from Google Places.
+    var google: GooglePlaceInfo?
 
     static func == (lhs: DiscoverItem, rhs: DiscoverItem) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }

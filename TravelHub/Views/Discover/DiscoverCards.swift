@@ -34,6 +34,9 @@ struct DiscoverCard: View {
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2, reservesSpace: true)
                     .multilineTextAlignment(.leading)
+                if let meta = PlaceMeta.line(item.google) {
+                    meta.font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
                 Text(detailLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -77,8 +80,8 @@ struct FeaturedCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(label).font(.caption.weight(.semibold)).opacity(0.85)
                     Text(item.title).font(.title2.bold()).lineLimit(2)
-                    Text([item.subtitle, distanceText(distance)].compactMap { $0 }.joined(separator: " · "))
-                        .font(.subheadline).opacity(0.85).lineLimit(1)
+                    (PlaceMeta.line(item.google, [item.subtitle, distanceText(distance)]) ?? Text(""))
+                        .font(.subheadline).lineLimit(1)
                 }
                 .foregroundStyle(.white)
                 .padding(18)
@@ -205,6 +208,9 @@ private struct MapPlaceCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.title).font(.subheadline.weight(.semibold)).lineLimit(2)
+                if let meta = PlaceMeta.line(item.google) {
+                    meta.font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
                 Text([distanceText(distance), item.kind ?? item.subtitle].compactMap { $0 }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
@@ -227,13 +233,16 @@ private struct MapPlaceCard: View {
 /// Rounded filter button ("All", "Restaurant", "Bakery").
 struct FilterChip: View {
     let title: String
+    var symbol: String? = nil
     let isSelected: Bool
     var color: Color = .accentColor
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(title)
+            Group {
+                if let symbol { Text("\(Image(systemName: symbol)) \(title)") } else { Text(title) }
+            }
                 .font(.subheadline.weight(isSelected ? .semibold : .regular))
                 .foregroundStyle(isSelected ? Color.white : Color.primary)
                 .padding(.horizontal, 14)
@@ -261,7 +270,7 @@ struct CompactPlaceRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                Text([distanceText(distance), item.subtitle].compactMap { $0 }.joined(separator: " · "))
+                (PlaceMeta.line(item.google, [distanceText(distance), item.subtitle]) ?? Text(""))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 4)

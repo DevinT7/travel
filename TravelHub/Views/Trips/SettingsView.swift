@@ -6,6 +6,8 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var context
     @AppStorage(APIKeys.aeroDataBoxKey) private var aeroKey = ""
     @AppStorage(APIKeys.ticketmasterKey) private var tmKey = ""
+    @AppStorage(APIKeys.googlePlacesKey) private var googleKey = ""
+    @AppStorage(GooglePlacesProvider.problemKey) private var googleProblem = ""
 
     var body: some View {
         Form {
@@ -29,6 +31,22 @@ struct SettingsView: View {
                 Text("Adds concerts, sports and shows happening during your trip to Discover. 5,000 free requests a day.")
             }
 
+            Section {
+                SecureField("Google Places API key", text: $googleKey)
+                    .onChange(of: googleKey) { googleProblem = "" }
+                Link("Get a key from Google Cloud →", destination: URL(string: "https://developers.google.com/maps/documentation/places/web-service/get-api-key")!)
+                    .font(.footnote)
+            } header: {
+                keyHeader("Ratings & Hours", isSet: !googleKey.isEmpty, problem: googleKey.isEmpty ? nil : googleProblem)
+            } footer: {
+                VStack(alignment: .leading, spacing: 6) {
+                    if !googleProblem.isEmpty, !googleKey.isEmpty {
+                        Text(googleProblem).foregroundStyle(.red)
+                    }
+                    Text("Adds Google ratings, prices and opening hours to restaurants, cafés, bars, museums, parks and shops in Discover, plus a photo on each place's page. In Google Cloud, turn on “Places API (New)” for your key. Google bills each search after a free monthly allowance; Discover uses one search per category and keeps results for two days.")
+                }
+            }
+
             Section("Always on, no key needed") {
                 source("map", "Apple Maps", "Restaurants, cafés, bars, museums, parks, shops, travel times")
                 source("book.closed", "Wikipedia", "Landmarks and sights with photos and descriptions")
@@ -50,13 +68,15 @@ struct SettingsView: View {
         }
     }
 
-    private func keyHeader(_ title: String, isSet: Bool) -> some View {
-        HStack {
+    private func keyHeader(_ title: String, isSet: Bool, problem: String? = nil) -> some View {
+        let failing = !(problem ?? "").isEmpty
+        return HStack {
             Text(title)
             Spacer()
-            Label(isSet ? "Connected" : "Not set", systemImage: isSet ? "checkmark.circle.fill" : "circle.dashed")
+            Label(failing ? "Not working" : isSet ? "Connected" : "Not set",
+                  systemImage: failing ? "exclamationmark.triangle.fill" : isSet ? "checkmark.circle.fill" : "circle.dashed")
                 .labelStyle(.titleAndIcon)
-                .foregroundStyle(isSet ? .green : .secondary)
+                .foregroundStyle(failing ? .orange : isSet ? .green : .secondary)
                 .textCase(nil)
         }
     }

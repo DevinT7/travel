@@ -217,6 +217,10 @@ final class PlanItem {
     /// Stable id from the source (Wikipedia page, MapKit identifier, Ticketmaster id).
     var sourceID: String?
     var isBooked: Bool = false
+    /// Weekly opening hours (`PlaceHours`, JSON), from Google, to warn when a stop is planned while it's closed.
+    var openingHoursData: Data?
+    /// When Google was last asked for this place's hours, so places without a listing aren't looked up again.
+    var hoursCheckedAt: Date?
     var trip: Trip?
 
     init(title: String, category: DiscoverCategory, start: Date, durationMinutes: Int = 60) {
@@ -237,6 +241,18 @@ final class PlanItem {
     }
 
     var end: Date { start.addingTimeInterval(TimeInterval(durationMinutes * 60)) }
+
+    var openingHours: PlaceHours? {
+        get { openingHoursData.flatMap { try? JSONDecoder().decode(PlaceHours.self, from: $0) } }
+        set { openingHoursData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
+
+    /// "Closed then · opens 11:00 AM" when the place won't be open for this visit. Ideas and events
+    /// (which set their own times) never warn.
+    var closedWarning: String? {
+        guard isScheduled, category != .events else { return nil }
+        return openingHours?.conflict(start: start, end: end)
+    }
     var imageURL: URL? { imageURLString.flatMap(URL.init(string:)) }
     var externalURL: URL? { externalURLString.flatMap(URL.init(string:)) }
 }

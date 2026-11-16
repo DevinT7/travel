@@ -26,9 +26,11 @@ enum APIError: LocalizedError {
 enum APIKeys {
     static let aeroDataBoxKey = "apikey.aerodatabox"
     static let ticketmasterKey = "apikey.ticketmaster"
+    static let googlePlacesKey = "apikey.googleplaces"
 
     static var aeroDataBox: String? { value(for: aeroDataBoxKey) }
     static var ticketmaster: String? { value(for: ticketmasterKey) }
+    static var googlePlaces: String? { value(for: googlePlacesKey) }
 
     private static func value(for key: String) -> String? {
         let v = UserDefaults.standard.string(forKey: key)?.trimmingCharacters(in: .whitespacesAndNewlines)

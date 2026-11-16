@@ -14,7 +14,9 @@ struct DiscoverView: View {
     @State private var layout: PlaceLayout = .cards
     /// "Restaurant", "Bakery"…: narrows a category to one kind of place. Nil shows them all.
     @State private var kindFilter: String?
-    @State private var nearestFirst = false
+    @State private var sort: PlaceSort = .best
+    /// Hide places that are closed right now (only offered when the results have hours).
+    @State private var openNowOnly = false
     /// Another city to browse instead of the destination (a day trip or the next stop).
     @State private var exploring: ExplorePlace?
     @State private var showingPlacePicker = false
@@ -69,7 +71,7 @@ struct DiscoverView: View {
             #if os(macOS)
             .padding(.top, 12)
             #endif
-            .readableWidth(1100)
+            .readableWidth(1320)
         }
         .background(Color.appBackground)
         .navigationTitle(trip.displayName)
@@ -199,6 +201,7 @@ struct DiscoverView: View {
         withAnimation(.snappy) {
             selectedCategory = category
             kindFilter = nil
+            openNowOnly = false
         }
     }
 
@@ -247,7 +250,7 @@ struct DiscoverView: View {
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.viewAligned)
-                .scrollClipDisabled()
+                .bleedsToScreenEdge()
             }
         }
         .task { await model.load(category) }
@@ -282,10 +285,33 @@ struct DiscoverView: View {
         return counts.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map(\.key)
     }
 
+    enum PlaceSort { case best, nearest, topRated }
+
     private func shown(_ items: [DiscoverItem]) -> [DiscoverItem] {
-        let filtered = kindFilter.map { k in items.filter { $0.kind == k } } ?? items
-        guard nearestFirst else { return filtered }
-        return filtered.sorted { (model.distance(to: $0) ?? .infinity) < (model.distance(to: $1) ?? .infinity) }
+        var filtered = kindFilter.map { k in items.filter { $0.kind == k } } ?? items
+        if openNowOnly {
+            filtered = filtered.filter {
+                switch $0.google?.hours?.status() {
+                case .open?, .closingSoon?: true
+                default: false
+                }
+            }
+        }
+        switch sort {
+        case .best: return filtered
+        case .nearest:
+            return filtered.sorted { (model.distance(to: $0) ?? .infinity) < (model.distance(to: $1) ?? .infinity) }
+        case .topRated:
+            guard hasRatings else { return filtered }
+            return filtered.sorted { Self.ratingScore($0) > Self.ratingScore($1) }
+        }
+    }
+
+    /// A rating weighted by how many people gave it, so a 5.0 from 3 reviews doesn't beat a 4.7 from 3,000.
+    private static func ratingScore(_ item: DiscoverItem) -> Double {
+        guard let r = item.google?.rating else { return 0 }
+        let n = Double(item.google?.ratingCount ?? 0), prior = 4.0, weight = 30.0
+        return (r * n + prior * weight) / (n + weight)
     }
 
     private func categoryPage(_ category: DiscoverCategory) -> some View {
@@ -302,6 +328,9 @@ struct DiscoverView: View {
             } else if state.items.isEmpty, case .loaded = state {
                 EmptyStateView(symbol: category.symbol, title: "Nothing found",
                                message: "No \(category.title.lowercased()) found \(nearText).")
+            } else if items.isEmpty && openNowOnly {
+                EmptyStateView(symbol: "clock", title: "Nothing open right now",
+                               message: "Turn off Open now to see everything \(nearText).")
             } else {
                 switch layout {
                 case .cards: cardGrid(items, category: category)
@@ -317,6 +346,10 @@ struct DiscoverView: View {
         .task(id: category) { await model.load(category) }
     }
 
+    private var currentItems: [DiscoverItem] { selectedCategory.map { model.state(for: $0).items } ?? [] }
+    private var hasRatings: Bool { currentItems.contains { $0.google?.rating != nil } }
+    private var hasHours: Bool { currentItems.contains { $0.google?.hours != nil } }
+
     /// "Where to eat · 25 places", then sort and Cards / List / Map.
     private func categoryHeader(_ category: DiscoverCategory, count: Int, loaded: Bool) -> some View {
         HStack(alignment: .center, spacing: 10) {
@@ -327,9 +360,10 @@ struct DiscoverView: View {
             }
             Spacer(minLength: 8)
             Menu {
-                Picker("Sort", selection: $nearestFirst) {
-                    Label("Best Match", systemImage: "star").tag(false)
-                    Label("Nearest", systemImage: "location").tag(true)
+                Picker("Sort", selection: $sort) {
+                    Label("Best Match", systemImage: "sparkles").tag(PlaceSort.best)
+                    Label("Nearest", systemImage: "location").tag(PlaceSort.nearest)
+                    if hasRatings { Label("Top Rated", systemImage: "star").tag(PlaceSort.topRated) }
                 }
             } label: {
                 Image(systemName: "arrow.up.arrow.down")
@@ -354,11 +388,19 @@ struct DiscoverView: View {
 
     @ViewBuilder
     private func kindChips(_ kinds: [String], color: Color) -> some View {
-        if !kinds.isEmpty {
+        if !kinds.isEmpty || hasHours {
             HorizontalScroller {
                 HStack(spacing: 8) {
-                    FilterChip(title: "All", isSelected: kindFilter == nil, color: color) {
-                        withAnimation(.snappy) { kindFilter = nil }
+                    if hasHours {
+                        FilterChip(title: "Open now", symbol: "clock", isSelected: openNowOnly, color: .green) {
+                            withAnimation(.snappy) { openNowOnly.toggle() }
+                        }
+                        if !kinds.isEmpty { Divider().frame(height: 20) }
+                    }
+                    if !kinds.isEmpty {
+                        FilterChip(title: "All", isSelected: kindFilter == nil, color: color) {
+                            withAnimation(.snappy) { kindFilter = nil }
+                        }
                     }
                     ForEach(kinds, id: \.self) { kind in
                         FilterChip(title: kind, isSelected: kindFilter == kind, color: color) {
@@ -377,7 +419,7 @@ struct DiscoverView: View {
     private func cardGrid(_ items: [DiscoverItem], category: DiscoverCategory) -> some View {
         if let first = items.first {
             FeaturedCard(item: first, distance: model.distance(to: first), isSaved: savedIDs.contains(first.id),
-                         label: nearestFirst ? "Closest" : "Best match", height: 230,
+                         label: sort == .nearest ? "Closest" : sort == .topRated ? "Top rated" : "Best match", height: 230,
                          onOpen: { openedItem = first }, onToggleSave: { toggleSave(first) })
         }
         LazyVGrid(columns: photoColumns, spacing: 12) {
@@ -444,6 +486,32 @@ extension PlanItem {
         plan.imageURLString = item.imageURL?.absoluteString
         plan.externalURLString = item.externalURL?.absoluteString
         plan.sourceID = item.id
+        if let google = item.google {
+            plan.openingHours = google.hours
+            plan.hoursCheckedAt = .now
+        }
         return plan
     }
 }
+
+private extension View {
+    /// On iPhone, lets a card row run past the side gutter to the screen edge. Anywhere wider (Mac,
+    /// iPad, a full-screen window), the page is a centered column, so the row stays clipped to it
+    /// instead of spilling out past the hero and section headers.
+    @ViewBuilder func bleedsToScreenEdge() -> some View {
+        #if os(iOS)
+        modifier(CompactScrollClip())
+        #else
+        self
+        #endif
+    }
+}
+
+#if os(iOS)
+private struct CompactScrollClip: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    func body(content: Content) -> some View {
+        content.scrollClipDisabled(sizeClass == .compact)
+    }
+}
+#endif
